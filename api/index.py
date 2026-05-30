@@ -26,7 +26,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from core.auth import verify_key
-from core.llm import generate
+from core.llm import generate, GeminiUnavailableError
 from core.rate_limit import limiter, get_limit
 from core.scraper import fetch_url_text
 from core.models import (
@@ -108,6 +108,16 @@ Incluye tu API key en la cabecera `x-api-key`.
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+@app.exception_handler(GeminiUnavailableError)
+async def gemini_unavailable_handler(request: Request, exc: GeminiUnavailableError):
+    return JSONResponse(
+        status_code=503,
+        content={
+            "warning": str(exc),
+            "detail": "AI enrichment temporarily unavailable due to upstream provider issue.",
+        },
+    )
 
 # Rate limiting
 app.state.limiter = limiter

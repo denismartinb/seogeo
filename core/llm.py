@@ -13,6 +13,10 @@ from functools import lru_cache
 from google import genai
 from google.genai import types
 
+
+class GeminiUnavailableError(Exception):
+    """Gemini no disponible por rate limit o error del proveedor."""
+
 # ── Configuración ────────────────────────────────────────────────────────────
 
 GEMINI_MODEL = "gemini-2.5-flash"           # modelo principal
@@ -64,8 +68,8 @@ async def generate(system_prompt: str, user_prompt: str, json_mode: bool = True)
             )
         except Exception as e:
             err = str(e).lower()
-            if "quota" in err or "429" in err or "rate" in err:
+            if any(k in err for k in ("quota", "429", "rate", "503", "unavailable", "timeout")):
                 continue
             raise
 
-    raise RuntimeError("Gemini rate limit alcanzado en todos los modelos. Inténtalo en unos minutos.")
+    raise GeminiUnavailableError("AI enrichment temporarily unavailable due to upstream provider issue. Try again in a few minutes.")
