@@ -37,9 +37,6 @@
         "security": [
           {
             "APIKeyHeader": []
-          },
-          {
-            "APIKeyHeader": []
           }
         ],
         "parameters": [
@@ -96,7 +93,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/TextInput",
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/TextInput"
+                  }
+                ],
                 "nullable": true,
                 "title": "Body"
               }
@@ -169,9 +170,6 @@
         "security": [
           {
             "APIKeyHeader": []
-          },
-          {
-            "APIKeyHeader": []
           }
         ],
         "parameters": [
@@ -228,7 +226,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/TextInput",
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/TextInput"
+                  }
+                ],
                 "nullable": true,
                 "title": "Body"
               }
@@ -302,9 +304,6 @@
         "security": [
           {
             "APIKeyHeader": []
-          },
-          {
-            "APIKeyHeader": []
           }
         ],
         "parameters": [
@@ -361,7 +360,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/TextInput",
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/TextInput"
+                  }
+                ],
                 "nullable": true,
                 "title": "Body"
               }
@@ -435,9 +438,6 @@
         "security": [
           {
             "APIKeyHeader": []
-          },
-          {
-            "APIKeyHeader": []
           }
         ],
         "parameters": [
@@ -482,7 +482,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UrlInput",
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/UrlInput"
+                  }
+                ],
                 "nullable": true,
                 "title": "Body"
               }
@@ -556,9 +560,6 @@
         "security": [
           {
             "APIKeyHeader": []
-          },
-          {
-            "APIKeyHeader": []
           }
         ],
         "parameters": [
@@ -603,7 +604,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/TextInput",
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/TextInput"
+                  }
+                ],
                 "nullable": true,
                 "title": "Body"
               }
@@ -676,9 +681,6 @@
         "security": [
           {
             "APIKeyHeader": []
-          },
-          {
-            "APIKeyHeader": []
           }
         ],
         "parameters": [
@@ -735,7 +737,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/TextInput",
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/TextInput"
+                  }
+                ],
                 "nullable": true,
                 "title": "Body"
               }
