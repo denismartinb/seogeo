@@ -19,7 +19,7 @@ import time
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from fastapi import FastAPI, Depends, HTTPException, Request
+from fastapi import FastAPI, Depends, HTTPException, Request, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
@@ -36,6 +36,44 @@ from core.models import (
     ErrorResponse,
 )
 from core.prompts import SEO_SYSTEM, GEO_SYSTEM, KEYWORD_SYSTEM, SCHEMA_SYSTEM
+
+
+def _merge_text_input(
+    body: TextInput | None,
+    text: str | None,
+    url: str | None,
+    language: str | None,
+    target_keyword: str | None,
+) -> TextInput:
+    """Fusiona query params con body JSON. Query params tienen prioridad."""
+    if body is None:
+        if not text:
+            raise HTTPException(status_code=422, detail="Se requiere 'text' como query param o en el body JSON.")
+        body = TextInput(text=text, url=url, language=language or "es", target_keyword=target_keyword)
+    else:
+        if text: body.text = text
+        if url: body.url = url
+        if language: body.language = language
+        if target_keyword: body.target_keyword = target_keyword
+    return body
+
+
+def _merge_url_input(
+    body: UrlInput | None,
+    url: str | None,
+    language: str | None,
+    target_keyword: str | None,
+) -> UrlInput:
+    """Fusiona query params con body JSON para endpoints de URL."""
+    if body is None:
+        if not url:
+            raise HTTPException(status_code=422, detail="Se requiere 'url' como query param o en el body JSON.")
+        body = UrlInput(url=url, language=language or "es", target_keyword=target_keyword)
+    else:
+        if url: body.url = url
+        if language: body.language = language
+        if target_keyword: body.target_keyword = target_keyword
+    return body
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 
@@ -157,11 +195,17 @@ async def health():
 @limiter.limit(get_limit)
 async def analyze_seo(
     request: Request,
-    body: TextInput,
+    body: TextInput | None = None,
+    text: str | None = Query(None, description="Texto o contenido a analizar (mín. 10 chars)"),
+    url: str | None = Query(None, description="URL de origen (opcional, mejora el contexto)"),
+    language: str | None = Query(None, description="Idioma objetivo: es, en, fr, de, pt..."),
+    target_keyword: str | None = Query(None, description="Keyword principal a optimizar"),
     _key: str = Depends(verify_key),
 ):
     """
     Genera metadata SEO completa a partir de un texto o contenido.
+
+    Acepta parámetros como **query params** (`?text=...&target_keyword=...`) o como **JSON body**.
 
     **Devuelve:**
     - Title tag y meta description optimizados
@@ -172,7 +216,8 @@ async def analyze_seo(
     - Puntuación SEO 0-100
     - Problemas detectados y sugerencias de mejora
     """
-    prompt = _build_content_prompt(body)
+    data = _merge_text_input(body, text, url, language, target_keyword)
+    prompt = _build_content_prompt(data)
     raw = await generate(SEO_SYSTEM, prompt)
     return _parse_json(raw, SeoMetadata)
 
@@ -189,11 +234,17 @@ async def analyze_seo(
 @limiter.limit(get_limit)
 async def analyze_geo(
     request: Request,
-    body: TextInput,
+    body: TextInput | None = None,
+    text: str | None = Query(None, description="Texto o contenido a analizar"),
+    url: str | None = Query(None, description="URL de origen (opcional)"),
+    language: str | None = Query(None, description="Idioma objetivo: es, en, fr, de, pt..."),
+    target_keyword: str | None = Query(None, description="Keyword principal"),
     _key: str = Depends(verify_key),
 ):
     """
     Analiza tu contenido para maximizar su visibilidad en ChatGPT, Gemini y Perplexity.
+
+    Acepta parámetros como **query params** (`?text=...`) o como **JSON body**.
 
     **GEO (Generative Engine Optimization)** es la práctica de optimizar contenido
     para aparecer como fuente en las respuestas generadas por IA.
@@ -207,7 +258,8 @@ async def analyze_geo(
     - Tipos de schema.org recomendados para GEO
     - Preguntas reales que tu contenido podría responder en ChatGPT/Perplexity
     """
-    prompt = _build_content_prompt(body)
+    data = _merge_text_input(body, text, url, language, target_keyword)
+    prompt = _build_content_prompt(data)
     raw = await generate(GEO_SYSTEM, prompt)
     return _parse_json(raw, GeoAnalysis)
 
@@ -224,17 +276,24 @@ async def analyze_geo(
 @limiter.limit(get_limit)
 async def analyze_full(
     request: Request,
-    body: TextInput,
+    body: TextInput | None = None,
+    text: str | None = Query(None, description="Texto o contenido a analizar"),
+    url: str | None = Query(None, description="URL de origen (opcional)"),
+    language: str | None = Query(None, description="Idioma objetivo: es, en, fr, de, pt..."),
+    target_keyword: str | None = Query(None, description="Keyword principal a optimizar"),
     _key: str = Depends(verify_key),
 ):
     """
     Ejecuta el análisis SEO y GEO en paralelo y devuelve ambos resultados.
 
+    Acepta parámetros como **query params** (`?text=...&target_keyword=...`) o como **JSON body**.
+
     Equivale a llamar a `/analyze/seo` y `/analyze/geo` en una sola request.
     Ideal para integraciones donde necesitas la imagen completa del contenido.
     """
     import asyncio
-    prompt = _build_content_prompt(body)
+    data = _merge_text_input(body, text, url, language, target_keyword)
+    prompt = _build_content_prompt(data)
 
     seo_raw, geo_raw = await asyncio.gather(
         generate(SEO_SYSTEM, prompt),
@@ -259,11 +318,16 @@ async def analyze_full(
 @limiter.limit(get_limit)
 async def analyze_url(
     request: Request,
-    body: UrlInput,
+    body: UrlInput | None = None,
+    url: str | None = Query(None, description="URL completa a analizar (https://...)"),
+    language: str | None = Query(None, description="Idioma objetivo: es, en, fr, de, pt..."),
+    target_keyword: str | None = Query(None, description="Keyword principal"),
     _key: str = Depends(verify_key),
 ):
     """
     Extrae el texto de una URL y ejecuta análisis SEO + GEO completo.
+
+    Acepta la URL como **query param** (`?url=https://...`) o como **JSON body**.
 
     Útil cuando no quieres copiar el contenido manualmente: basta con la URL.
     El scraper extrae el texto visible, ignora navegación/footer y limpia el HTML.
@@ -271,14 +335,14 @@ async def analyze_url(
     **Nota:** páginas que requieren JavaScript o login pueden devolver contenido parcial.
     """
     import asyncio
-    text = await fetch_url_text(str(body.url))
+    data = _merge_url_input(body, url, language, target_keyword)
+    fetched_text = await fetch_url_text(str(data.url))
 
-    # Reutilizamos TextInput internamente con el texto extraído
     text_body = TextInput(
-        text=text,
-        url=str(body.url),
-        language=body.language,
-        target_keyword=body.target_keyword,
+        text=fetched_text,
+        url=str(data.url),
+        language=data.language,
+        target_keyword=data.target_keyword,
     )
     prompt = _build_content_prompt(text_body)
 
@@ -305,11 +369,16 @@ async def analyze_url(
 @limiter.limit(get_limit)
 async def keyword_research(
     request: Request,
-    body: TextInput,
+    body: TextInput | None = None,
+    text: str | None = Query(None, description="Tema o keyword semilla (ej: 'fibra óptica', 'vuelos baratos')"),
+    language: str | None = Query(None, description="Idioma objetivo: es, en, fr, de, pt..."),
+    target_keyword: str | None = Query(None, description="Keyword principal (opcional)"),
     _key: str = Depends(verify_key),
 ):
     """
     Genera ideas de keywords a partir de un tema o keyword semilla.
+
+    Acepta parámetros como **query params** (`?text=fibra+óptica&language=es`) o como **JSON body**.
 
     **Exclusivo de esta API:**
     - Clasifica keywords por intención (informacional, transaccional...)
@@ -319,7 +388,8 @@ async def keyword_research(
       para LLMs que para Google
     - Sugiere ángulos de contenido concretos para cada keyword
     """
-    prompt = f"Tema/keyword semilla: {body.text}\nIdioma: {body.language or 'es'}"
+    data = _merge_text_input(body, text, None, language, target_keyword)
+    prompt = f"Tema/keyword semilla: {data.text}\nIdioma: {data.language or 'es'}"
     raw = await generate(KEYWORD_SYSTEM, prompt)
     return _parse_json(raw, KeywordResearchOutput)
 
@@ -336,11 +406,17 @@ async def keyword_research(
 @limiter.limit(get_limit)
 async def generate_schema(
     request: Request,
-    body: TextInput,
+    body: TextInput | None = None,
+    text: str | None = Query(None, description="Texto o contenido del que generar el schema.org"),
+    url: str | None = Query(None, description="URL de origen (opcional)"),
+    language: str | None = Query(None, description="Idioma objetivo: es, en, fr, de, pt..."),
+    target_keyword: str | None = Query(None, description="Keyword principal (opcional)"),
     _key: str = Depends(verify_key),
 ):
     """
     Genera el JSON-LD de schema.org más adecuado para tu contenido.
+
+    Acepta parámetros como **query params** (`?text=...`) o como **JSON body**.
 
     Detecta automáticamente el tipo más apropiado:
     Article, FAQPage, HowTo, Product, LocalBusiness, BreadcrumbList, etc.
@@ -348,7 +424,8 @@ async def generate_schema(
     El JSON-LD devuelto está listo para insertar dentro de una etiqueta
     `<script type="application/ld+json">` en el `<head>` de tu página.
     """
-    prompt = _build_content_prompt(body)
+    data = _merge_text_input(body, text, url, language, target_keyword)
+    prompt = _build_content_prompt(data)
     raw = await generate(SCHEMA_SYSTEM, prompt)
     return _parse_json(raw, SchemaOutput)
 
