@@ -8,7 +8,7 @@ from typing import Optional
 # ── Inputs ───────────────────────────────────────────────────────────────────
 
 class TextInput(BaseModel):
-    text: str = Field(..., min_length=10, max_length=10000, description="Texto o contenido a analizar")
+    text: str = Field(..., min_length=1, max_length=10000, description="Texto o contenido a analizar")
     url: Optional[str] = Field(None, description="URL de origen (opcional, mejora el contexto)")
     language: Optional[str] = Field("es", description="Idioma objetivo: es, en, fr, de, pt...")
     target_keyword: Optional[str] = Field(None, description="Keyword principal a optimizar")
