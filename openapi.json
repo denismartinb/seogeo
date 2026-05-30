@@ -1,0 +1,1252 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "SEO & GEO API",
+    "description": "\n## SEO & GEO API — Optimización para buscadores tradicionales y motores de IA\n\nGenera metadata SEO completa y analiza tu contenido para aparecer en las respuestas\nde ChatGPT, Gemini, Perplexity y otros LLMs.\n\n### Endpoints principales\n- **POST /analyze/seo** — Title, meta description, slug, schema.org, puntuación SEO\n- **POST /analyze/geo** — Snippet para IA, score GEO, entidades, sugerencias\n- **POST /analyze/full** — SEO + GEO en una sola llamada\n- **POST /analyze/url** — Scraping + análisis completo desde URL\n- **POST /keywords** — Keyword research con intención + potencial GEO\n- **POST /schema** — Generador de JSON-LD (Article, FAQ, HowTo, Product...)\n\n### Autenticación\nIncluye tu API key en la cabecera `x-api-key`.\n    ",
+    "version": "1.1.0"
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "Status"
+        ],
+        "summary": "Health check",
+        "description": "Endpoint público para verificar que la API está activa. Sin autenticación.",
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "description": "API operativa",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/analyze/seo": {
+      "post": {
+        "tags": [
+          "SEO"
+        ],
+        "summary": "Análisis SEO completo",
+        "description": "Genera metadata SEO completa a partir de un texto o contenido.\n\nAcepta parámetros como **query params** (`?text=...&target_keyword=...`) o como **JSON body**.\n\n**Devuelve:**\n- Title tag y meta description optimizados\n- Slug limpio\n- Keywords principal y secundarias (LSI)\n- Schema.org (Article, FAQ si aplica)\n- Open Graph tags\n- Puntuación SEO 0-100\n- Problemas detectados y sugerencias de mejora",
+        "operationId": "analyze_seo_analyze_seo_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "text",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "description": "Texto o contenido a analizar (mín. 10 chars)",
+              "title": "Text"
+            },
+            "description": "Texto o contenido a analizar (mín. 10 chars)"
+          },
+          {
+            "name": "url",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "description": "URL de origen (opcional, mejora el contexto)",
+              "title": "Url"
+            },
+            "description": "URL de origen (opcional, mejora el contexto)"
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "description": "Idioma objetivo: es, en, fr, de, pt...",
+              "title": "Language"
+            },
+            "description": "Idioma objetivo: es, en, fr, de, pt..."
+          },
+          {
+            "name": "target_keyword",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "description": "Keyword principal a optimizar",
+              "title": "Target Keyword"
+            },
+            "description": "Keyword principal a optimizar"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TextInput",
+                "nullable": true,
+                "title": "Body"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SeoMetadata"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/analyze/geo": {
+      "post": {
+        "tags": [
+          "GEO"
+        ],
+        "summary": "Análisis GEO — optimización para respuestas de IA",
+        "description": "Analiza tu contenido para maximizar su visibilidad en ChatGPT, Gemini y Perplexity.\n\nAcepta parámetros como **query params** (`?text=...`) o como **JSON body**.\n\n**GEO (Generative Engine Optimization)** es la práctica de optimizar contenido\npara aparecer como fuente en las respuestas generadas por IA.\n\n**Devuelve:**\n- Score GEO 0-100\n- Snippet optimizado para ser citado por IA (<280 chars)\n- Resumen estructurado \"answer-ready\"\n- Entidades presentes y faltantes\n- Probabilidad de citación: baja | media | alta\n- Tipos de schema.org recomendados para GEO\n- Preguntas reales que tu contenido podría responder en ChatGPT/Perplexity",
+        "operationId": "analyze_geo_analyze_geo_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "text",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "description": "Texto o contenido a analizar",
+              "title": "Text"
+            },
+            "description": "Texto o contenido a analizar"
+          },
+          {
+            "name": "url",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "description": "URL de origen (opcional)",
+              "title": "Url"
+            },
+            "description": "URL de origen (opcional)"
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "description": "Idioma objetivo: es, en, fr, de, pt...",
+              "title": "Language"
+            },
+            "description": "Idioma objetivo: es, en, fr, de, pt..."
+          },
+          {
+            "name": "target_keyword",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "description": "Keyword principal",
+              "title": "Target Keyword"
+            },
+            "description": "Keyword principal"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TextInput",
+                "nullable": true,
+                "title": "Body"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GeoAnalysis"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/analyze/full": {
+      "post": {
+        "tags": [
+          "SEO",
+          "GEO"
+        ],
+        "summary": "Análisis SEO + GEO combinado",
+        "description": "Ejecuta el análisis SEO y GEO en paralelo y devuelve ambos resultados.\n\nAcepta parámetros como **query params** (`?text=...&target_keyword=...`) o como **JSON body**.\n\nEquivale a llamar a `/analyze/seo` y `/analyze/geo` en una sola request.\nIdeal para integraciones donde necesitas la imagen completa del contenido.",
+        "operationId": "analyze_full_analyze_full_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "text",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "description": "Texto o contenido a analizar",
+              "title": "Text"
+            },
+            "description": "Texto o contenido a analizar"
+          },
+          {
+            "name": "url",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "description": "URL de origen (opcional)",
+              "title": "Url"
+            },
+            "description": "URL de origen (opcional)"
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "description": "Idioma objetivo: es, en, fr, de, pt...",
+              "title": "Language"
+            },
+            "description": "Idioma objetivo: es, en, fr, de, pt..."
+          },
+          {
+            "name": "target_keyword",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "description": "Keyword principal a optimizar",
+              "title": "Target Keyword"
+            },
+            "description": "Keyword principal a optimizar"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TextInput",
+                "nullable": true,
+                "title": "Body"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FullAnalysis"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/analyze/url": {
+      "post": {
+        "tags": [
+          "SEO",
+          "GEO"
+        ],
+        "summary": "Análisis SEO + GEO desde URL (scraping automático)",
+        "description": "Extrae el texto de una URL y ejecuta análisis SEO + GEO completo.\n\nAcepta la URL como **query param** (`?url=https://...`) o como **JSON body**.\n\nÚtil cuando no quieres copiar el contenido manualmente: basta con la URL.\nEl scraper extrae el texto visible, ignora navegación/footer y limpia el HTML.\n\n**Nota:** páginas que requieren JavaScript o login pueden devolver contenido parcial.",
+        "operationId": "analyze_url_analyze_url_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "url",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "description": "URL completa a analizar (https://...)",
+              "title": "Url"
+            },
+            "description": "URL completa a analizar (https://...)"
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "description": "Idioma objetivo: es, en, fr, de, pt...",
+              "title": "Language"
+            },
+            "description": "Idioma objetivo: es, en, fr, de, pt..."
+          },
+          {
+            "name": "target_keyword",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "description": "Keyword principal",
+              "title": "Target Keyword"
+            },
+            "description": "Keyword principal"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UrlInput",
+                "nullable": true,
+                "title": "Body"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FullAnalysis"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unprocessable Entity"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          }
+        }
+      }
+    },
+    "/keywords": {
+      "post": {
+        "tags": [
+          "SEO",
+          "GEO"
+        ],
+        "summary": "Keyword research con intención y potencial GEO",
+        "description": "Genera ideas de keywords a partir de un tema o keyword semilla.\n\nAcepta parámetros como **query params** (`?text=fibra+óptica&language=es`) o como **JSON body**.\n\n**Exclusivo de esta API:**\n- Clasifica keywords por intención (informacional, transaccional...)\n- Estima potencial GEO: qué keywords tienen más probabilidad de generar\n  respuestas de IA donde tu contenido sea citado\n- Identifica \"GEO-first keywords\": búsquedas donde vale más optimizar\n  para LLMs que para Google\n- Sugiere ángulos de contenido concretos para cada keyword",
+        "operationId": "keyword_research_keywords_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "text",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "description": "Tema o keyword semilla (ej: 'fibra óptica', 'vuelos baratos')",
+              "title": "Text"
+            },
+            "description": "Tema o keyword semilla (ej: 'fibra óptica', 'vuelos baratos')"
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "description": "Idioma objetivo: es, en, fr, de, pt...",
+              "title": "Language"
+            },
+            "description": "Idioma objetivo: es, en, fr, de, pt..."
+          },
+          {
+            "name": "target_keyword",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "description": "Keyword principal (opcional)",
+              "title": "Target Keyword"
+            },
+            "description": "Keyword principal (opcional)"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TextInput",
+                "nullable": true,
+                "title": "Body"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KeywordResearchOutput"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/schema": {
+      "post": {
+        "tags": [
+          "SEO"
+        ],
+        "summary": "Generador de JSON-LD / structured data",
+        "description": "Genera el JSON-LD de schema.org más adecuado para tu contenido.\n\nAcepta parámetros como **query params** (`?text=...`) o como **JSON body**.\n\nDetecta automáticamente el tipo más apropiado:\nArticle, FAQPage, HowTo, Product, LocalBusiness, BreadcrumbList, etc.\n\nEl JSON-LD devuelto está listo para insertar dentro de una etiqueta\n`<script type=\"application/ld+json\">` en el `<head>` de tu página.",
+        "operationId": "generate_schema_schema_post",
+        "security": [
+          {
+            "APIKeyHeader": []
+          },
+          {
+            "APIKeyHeader": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "text",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "description": "Texto o contenido del que generar el schema.org",
+              "title": "Text"
+            },
+            "description": "Texto o contenido del que generar el schema.org"
+          },
+          {
+            "name": "url",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "description": "URL de origen (opcional)",
+              "title": "Url"
+            },
+            "description": "URL de origen (opcional)"
+          },
+          {
+            "name": "language",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "description": "Idioma objetivo: es, en, fr, de, pt...",
+              "title": "Language"
+            },
+            "description": "Idioma objetivo: es, en, fr, de, pt..."
+          },
+          {
+            "name": "target_keyword",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "nullable": true,
+              "description": "Keyword principal (opcional)",
+              "title": "Target Keyword"
+            },
+            "description": "Keyword principal (opcional)"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TextInput",
+                "nullable": true,
+                "title": "Body"
+              }
+            }
+          },
+          "required": false
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SchemaOutput"
+                }
+              }
+            }
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Too Many Requests"
+          },
+          "502": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            },
+            "description": "Bad Gateway"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ErrorResponse": {
+        "properties": {
+          "error": {
+            "type": "string",
+            "title": "Error"
+          },
+          "detail": {
+            "type": "string",
+            "nullable": true,
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "title": "ErrorResponse"
+      },
+      "FullAnalysis": {
+        "properties": {
+          "seo": {
+            "$ref": "#/components/schemas/SeoMetadata"
+          },
+          "geo": {
+            "$ref": "#/components/schemas/GeoAnalysis"
+          }
+        },
+        "type": "object",
+        "required": [
+          "seo",
+          "geo"
+        ],
+        "title": "FullAnalysis"
+      },
+      "GeoAnalysis": {
+        "properties": {
+          "geo_score": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Geo Score",
+            "description": "Puntuación GEO 0-100"
+          },
+          "ai_snippet": {
+            "type": "string",
+            "title": "Ai Snippet",
+            "description": "Snippet optimizado para respuestas de IA (<280 chars)"
+          },
+          "answer_ready_summary": {
+            "type": "string",
+            "title": "Answer Ready Summary",
+            "description": "Resumen estructurado listo para ser citado por IA"
+          },
+          "entity_coverage": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Entity Coverage",
+            "description": "Entidades nombradas detectadas (personas, lugares, marcas)"
+          },
+          "missing_entities": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Missing Entities",
+            "description": "Entidades que debería mencionar para más autoridad"
+          },
+          "citation_likelihood": {
+            "type": "string",
+            "title": "Citation Likelihood",
+            "description": "Probabilidad de ser citado: baja | media | alta"
+          },
+          "structured_data_recommended": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Structured Data Recommended",
+            "description": "Tipos de schema.org recomendados para GEO"
+          },
+          "ai_friendliness_issues": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Ai Friendliness Issues",
+            "description": "Problemas que reducen visibilidad en IA"
+          },
+          "geo_suggestions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Geo Suggestions",
+            "description": "Acciones concretas para mejorar GEO"
+          },
+          "llm_query_matches": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Llm Query Matches",
+            "description": "Preguntas de usuario que este contenido podría responder en ChatGPT/Gemini/Perplexity"
+          }
+        },
+        "type": "object",
+        "required": [
+          "geo_score",
+          "ai_snippet",
+          "answer_ready_summary",
+          "entity_coverage",
+          "missing_entities",
+          "citation_likelihood",
+          "structured_data_recommended",
+          "ai_friendliness_issues",
+          "geo_suggestions",
+          "llm_query_matches"
+        ],
+        "title": "GeoAnalysis"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "KeywordIdea": {
+        "properties": {
+          "keyword": {
+            "type": "string",
+            "title": "Keyword"
+          },
+          "intent": {
+            "type": "string",
+            "title": "Intent",
+            "description": "informacional | navegacional | transaccional | comercial"
+          },
+          "difficulty": {
+            "type": "string",
+            "title": "Difficulty",
+            "description": "baja | media | alta"
+          },
+          "geo_potential": {
+            "type": "string",
+            "title": "Geo Potential",
+            "description": "Potencial de aparecer en respuestas de IA: bajo | medio | alto"
+          },
+          "content_angle": {
+            "type": "string",
+            "title": "Content Angle",
+            "description": "Ángulo de contenido recomendado"
+          }
+        },
+        "type": "object",
+        "required": [
+          "keyword",
+          "intent",
+          "difficulty",
+          "geo_potential",
+          "content_angle"
+        ],
+        "title": "KeywordIdea"
+      },
+      "KeywordResearchOutput": {
+        "properties": {
+          "seed_keyword": {
+            "type": "string",
+            "title": "Seed Keyword"
+          },
+          "language": {
+            "type": "string",
+            "title": "Language"
+          },
+          "keywords": {
+            "items": {
+              "$ref": "#/components/schemas/KeywordIdea"
+            },
+            "type": "array",
+            "title": "Keywords"
+          },
+          "content_gap_opportunities": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Content Gap Opportunities"
+          },
+          "geo_first_keywords": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Geo First Keywords",
+            "description": "Keywords donde GEO > SEO tradicional"
+          }
+        },
+        "type": "object",
+        "required": [
+          "seed_keyword",
+          "language",
+          "keywords",
+          "content_gap_opportunities",
+          "geo_first_keywords"
+        ],
+        "title": "KeywordResearchOutput"
+      },
+      "SchemaOutput": {
+        "properties": {
+          "schema_type": {
+            "type": "string",
+            "title": "Schema Type"
+          },
+          "json_ld": {
+            "type": "object",
+            "title": "Json Ld",
+            "description": "JSON-LD listo para insertar en <head>"
+          },
+          "implementation_tip": {
+            "type": "string",
+            "title": "Implementation Tip"
+          }
+        },
+        "type": "object",
+        "required": [
+          "schema_type",
+          "json_ld",
+          "implementation_tip"
+        ],
+        "title": "SchemaOutput"
+      },
+      "SeoMetadata": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "Title tag optimizado (<60 chars)"
+          },
+          "meta_description": {
+            "type": "string",
+            "title": "Meta Description",
+            "description": "Meta description (<160 chars)"
+          },
+          "slug": {
+            "type": "string",
+            "title": "Slug",
+            "description": "URL slug limpio"
+          },
+          "focus_keyword": {
+            "type": "string",
+            "title": "Focus Keyword",
+            "description": "Keyword principal detectada o sugerida"
+          },
+          "secondary_keywords": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Secondary Keywords",
+            "description": "Keywords secundarias (LSI)"
+          },
+          "schema_faq": {
+            "items": {
+              "type": "object"
+            },
+            "type": "array",
+            "nullable": true,
+            "title": "Schema Faq",
+            "description": "FAQ schema.org si aplica"
+          },
+          "schema_article": {
+            "type": "object",
+            "nullable": true,
+            "title": "Schema Article",
+            "description": "Article schema.org"
+          },
+          "og_title": {
+            "type": "string",
+            "title": "Og Title",
+            "description": "Open Graph title"
+          },
+          "og_description": {
+            "type": "string",
+            "title": "Og Description",
+            "description": "Open Graph description"
+          },
+          "readability_score": {
+            "type": "string",
+            "title": "Readability Score",
+            "description": "Legibilidad estimada: básico | medio | avanzado"
+          },
+          "seo_score": {
+            "type": "integer",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Seo Score",
+            "description": "Puntuación SEO estimada 0-100"
+          },
+          "issues": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Issues",
+            "description": "Problemas SEO detectados"
+          },
+          "suggestions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Suggestions",
+            "description": "Mejoras recomendadas"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "meta_description",
+          "slug",
+          "focus_keyword",
+          "secondary_keywords",
+          "og_title",
+          "og_description",
+          "readability_score",
+          "seo_score",
+          "issues",
+          "suggestions"
+        ],
+        "title": "SeoMetadata"
+      },
+      "TextInput": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "maxLength": 10000,
+            "minLength": 10,
+            "title": "Text",
+            "description": "Texto o contenido a analizar"
+          },
+          "url": {
+            "type": "string",
+            "nullable": true,
+            "title": "Url",
+            "description": "URL de origen (opcional, mejora el contexto)"
+          },
+          "language": {
+            "type": "string",
+            "nullable": true,
+            "title": "Language",
+            "description": "Idioma objetivo: es, en, fr, de, pt...",
+            "default": "es"
+          },
+          "target_keyword": {
+            "type": "string",
+            "nullable": true,
+            "title": "Target Keyword",
+            "description": "Keyword principal a optimizar"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "TextInput"
+      },
+      "UrlInput": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "URL completa a analizar (https://...)"
+          },
+          "language": {
+            "type": "string",
+            "nullable": true,
+            "title": "Language",
+            "description": "Idioma objetivo",
+            "default": "es"
+          },
+          "target_keyword": {
+            "type": "string",
+            "nullable": true,
+            "title": "Target Keyword",
+            "description": "Keyword principal"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "UrlInput"
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      }
+    },
+    "securitySchemes": {
+      "APIKeyHeader": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-api-key"
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "https://seogeo-five.vercel.app",
+      "description": "Production"
+    }
+  ]
+}
