@@ -30,7 +30,7 @@ from core.llm import generate, GeminiUnavailableError
 from core.rate_limit import limiter, get_limit
 from core.scraper import fetch_url_text
 from core.models import (
-    TextInput, UrlInput,
+    TextInput, UrlInput, TextInputBody, UrlInputBody,
     SeoMetadata, GeoAnalysis, FullAnalysis,
     KeywordResearchOutput, SchemaOutput,
     ErrorResponse,
@@ -39,41 +39,37 @@ from core.prompts import SEO_SYSTEM, GEO_SYSTEM, KEYWORD_SYSTEM, SCHEMA_SYSTEM
 
 
 def _merge_text_input(
-    body: TextInput | None,
+    body: TextInputBody | None,
     text: str | None,
     url: str | None,
     language: str | None,
     target_keyword: str | None,
 ) -> TextInput:
     """Fusiona query params con body JSON. Query params tienen prioridad."""
-    if body is None:
-        if not text:
-            raise HTTPException(status_code=422, detail="Se requiere 'text' como query param o en el body JSON.")
-        body = TextInput(text=text, url=url, language=language or "es", target_keyword=target_keyword)
-    else:
-        if text: body.text = text
-        if url: body.url = url
-        if language: body.language = language
-        if target_keyword: body.target_keyword = target_keyword
-    return body
+    merged_text = text or (body.text if body else None)
+    merged_url = url or (body.url if body else None)
+    merged_lang = language or (body.language if body else None) or "es"
+    merged_kw = target_keyword or (body.target_keyword if body else None)
+
+    if not merged_text:
+        raise HTTPException(status_code=422, detail="Se requiere 'text' como query param o en el body JSON.")
+    return TextInput(text=merged_text, url=merged_url, language=merged_lang, target_keyword=merged_kw)
 
 
 def _merge_url_input(
-    body: UrlInput | None,
+    body: UrlInputBody | None,
     url: str | None,
     language: str | None,
     target_keyword: str | None,
 ) -> UrlInput:
     """Fusiona query params con body JSON para endpoints de URL."""
-    if body is None:
-        if not url:
-            raise HTTPException(status_code=422, detail="Se requiere 'url' como query param o en el body JSON.")
-        body = UrlInput(url=url, language=language or "es", target_keyword=target_keyword)
-    else:
-        if url: body.url = url
-        if language: body.language = language
-        if target_keyword: body.target_keyword = target_keyword
-    return body
+    merged_url = url or (body.url if body else None)
+    merged_lang = language or (body.language if body else None) or "es"
+    merged_kw = target_keyword or (body.target_keyword if body else None)
+
+    if not merged_url:
+        raise HTTPException(status_code=422, detail="Se requiere 'url' como query param o en el body JSON.")
+    return UrlInput(url=merged_url, language=merged_lang, target_keyword=merged_kw)
 
 # ── Logging ───────────────────────────────────────────────────────────────────
 
@@ -205,7 +201,7 @@ async def health():
 @limiter.limit(get_limit)
 async def analyze_seo(
     request: Request,
-    body: TextInput | None = None,
+    body: TextInputBody | None = None,
     text: str | None = Query(None, description="Texto o contenido a analizar (mín. 10 chars)"),
     url: str | None = Query(None, description="URL de origen (opcional, mejora el contexto)"),
     language: str | None = Query(None, description="Idioma objetivo: es, en, fr, de, pt..."),
@@ -244,7 +240,7 @@ async def analyze_seo(
 @limiter.limit(get_limit)
 async def analyze_geo(
     request: Request,
-    body: TextInput | None = None,
+    body: TextInputBody | None = None,
     text: str | None = Query(None, description="Texto o contenido a analizar"),
     url: str | None = Query(None, description="URL de origen (opcional)"),
     language: str | None = Query(None, description="Idioma objetivo: es, en, fr, de, pt..."),
@@ -286,7 +282,7 @@ async def analyze_geo(
 @limiter.limit(get_limit)
 async def analyze_full(
     request: Request,
-    body: TextInput | None = None,
+    body: TextInputBody | None = None,
     text: str | None = Query(None, description="Texto o contenido a analizar"),
     url: str | None = Query(None, description="URL de origen (opcional)"),
     language: str | None = Query(None, description="Idioma objetivo: es, en, fr, de, pt..."),
@@ -328,7 +324,7 @@ async def analyze_full(
 @limiter.limit(get_limit)
 async def analyze_url(
     request: Request,
-    body: UrlInput | None = None,
+    body: UrlInputBody | None = None,
     url: str | None = Query(None, description="URL completa a analizar (https://...)"),
     language: str | None = Query(None, description="Idioma objetivo: es, en, fr, de, pt..."),
     target_keyword: str | None = Query(None, description="Keyword principal"),
@@ -379,7 +375,7 @@ async def analyze_url(
 @limiter.limit(get_limit)
 async def keyword_research(
     request: Request,
-    body: TextInput | None = None,
+    body: TextInputBody | None = None,
     text: str | None = Query(None, description="Tema o keyword semilla (ej: 'fibra óptica', 'vuelos baratos')"),
     language: str | None = Query(None, description="Idioma objetivo: es, en, fr, de, pt..."),
     target_keyword: str | None = Query(None, description="Keyword principal (opcional)"),
@@ -416,7 +412,7 @@ async def keyword_research(
 @limiter.limit(get_limit)
 async def generate_schema(
     request: Request,
-    body: TextInput | None = None,
+    body: TextInputBody | None = None,
     text: str | None = Query(None, description="Texto o contenido del que generar el schema.org"),
     url: str | None = Query(None, description="URL de origen (opcional)"),
     language: str | None = Query(None, description="Idioma objetivo: es, en, fr, de, pt..."),

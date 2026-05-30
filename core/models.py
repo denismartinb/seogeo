@@ -20,6 +20,21 @@ class UrlInput(BaseModel):
     target_keyword: Optional[str] = Field(None, description="Keyword principal")
 
 
+# Modelos permisivos para recibir body de RapidAPI (todos los campos opcionales,
+# sin validación estricta — _merge_text_input/_merge_url_input hacen la validación real)
+class TextInputBody(BaseModel):
+    text: Optional[str] = Field(None, description="Texto o contenido a analizar")
+    url: Optional[str] = Field(None, description="URL de origen (opcional)")
+    language: Optional[str] = Field(None, description="Idioma objetivo: es, en, fr, de, pt...")
+    target_keyword: Optional[str] = Field(None, description="Keyword principal a optimizar")
+
+
+class UrlInputBody(BaseModel):
+    url: Optional[str] = Field(None, description="URL completa a analizar (https://...)")
+    language: Optional[str] = Field(None, description="Idioma objetivo")
+    target_keyword: Optional[str] = Field(None, description="Keyword principal")
+
+
 # ── SEO Outputs ───────────────────────────────────────────────────────────────
 
 class SeoMetadata(BaseModel):
