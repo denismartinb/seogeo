@@ -34,11 +34,6 @@
         "summary": "Análisis SEO completo",
         "description": "Genera metadata SEO completa a partir de un texto o contenido.\n\nAcepta parámetros como **query params** (`?text=...&target_keyword=...`) o como **JSON body**.\n\n**Devuelve:**\n- Title tag y meta description optimizados\n- Slug limpio\n- Keywords principal y secundarias (LSI)\n- Schema.org (Article, FAQ si aplica)\n- Open Graph tags\n- Puntuación SEO 0-100\n- Problemas detectados y sugerencias de mejora",
         "operationId": "analyze_seo_analyze_seo_post",
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ],
         "parameters": [
           {
             "name": "text",
@@ -167,11 +162,6 @@
         "summary": "Análisis GEO — optimización para respuestas de IA",
         "description": "Analiza tu contenido para maximizar su visibilidad en ChatGPT, Gemini y Perplexity.\n\nAcepta parámetros como **query params** (`?text=...`) o como **JSON body**.\n\n**GEO (Generative Engine Optimization)** es la práctica de optimizar contenido\npara aparecer como fuente en las respuestas generadas por IA.\n\n**Devuelve:**\n- Score GEO 0-100\n- Snippet optimizado para ser citado por IA (<280 chars)\n- Resumen estructurado \"answer-ready\"\n- Entidades presentes y faltantes\n- Probabilidad de citación: baja | media | alta\n- Tipos de schema.org recomendados para GEO\n- Preguntas reales que tu contenido podría responder en ChatGPT/Perplexity",
         "operationId": "analyze_geo_analyze_geo_post",
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ],
         "parameters": [
           {
             "name": "text",
@@ -301,11 +291,6 @@
         "summary": "Análisis SEO + GEO combinado",
         "description": "Ejecuta el análisis SEO y GEO en paralelo y devuelve ambos resultados.\n\nAcepta parámetros como **query params** (`?text=...&target_keyword=...`) o como **JSON body**.\n\nEquivale a llamar a `/analyze/seo` y `/analyze/geo` en una sola request.\nIdeal para integraciones donde necesitas la imagen completa del contenido.",
         "operationId": "analyze_full_analyze_full_post",
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ],
         "parameters": [
           {
             "name": "text",
@@ -435,11 +420,6 @@
         "summary": "Análisis SEO + GEO desde URL (scraping automático)",
         "description": "Extrae el texto de una URL y ejecuta análisis SEO + GEO completo.\n\nAcepta la URL como **query param** (`?url=https://...`) o como **JSON body**.\n\nÚtil cuando no quieres copiar el contenido manualmente: basta con la URL.\nEl scraper extrae el texto visible, ignora navegación/footer y limpia el HTML.\n\n**Nota:** páginas que requieren JavaScript o login pueden devolver contenido parcial.",
         "operationId": "analyze_url_analyze_url_post",
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ],
         "parameters": [
           {
             "name": "url",
@@ -557,11 +537,6 @@
         "summary": "Keyword research con intención y potencial GEO",
         "description": "Genera ideas de keywords a partir de un tema o keyword semilla.\n\nAcepta parámetros como **query params** (`?text=fibra+óptica&language=es`) o como **JSON body**.\n\n**Exclusivo de esta API:**\n- Clasifica keywords por intención (informacional, transaccional...)\n- Estima potencial GEO: qué keywords tienen más probabilidad de generar\n  respuestas de IA donde tu contenido sea citado\n- Identifica \"GEO-first keywords\": búsquedas donde vale más optimizar\n  para LLMs que para Google\n- Sugiere ángulos de contenido concretos para cada keyword",
         "operationId": "keyword_research_keywords_post",
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ],
         "parameters": [
           {
             "name": "text",
@@ -678,11 +653,6 @@
         "summary": "Generador de JSON-LD / structured data",
         "description": "Genera el JSON-LD de schema.org más adecuado para tu contenido.\n\nAcepta parámetros como **query params** (`?text=...`) o como **JSON body**.\n\nDetecta automáticamente el tipo más apropiado:\nArticle, FAQPage, HowTo, Product, LocalBusiness, BreadcrumbList, etc.\n\nEl JSON-LD devuelto está listo para insertar dentro de una etiqueta\n`<script type=\"application/ld+json\">` en el `<head>` de tu página.",
         "operationId": "generate_schema_schema_post",
-        "security": [
-          {
-            "APIKeyHeader": []
-          }
-        ],
         "parameters": [
           {
             "name": "text",
@@ -1239,13 +1209,6 @@
           "type"
         ],
         "title": "ValidationError"
-      }
-    },
-    "securitySchemes": {
-      "APIKeyHeader": {
-        "type": "apiKey",
-        "in": "header",
-        "name": "x-api-key"
       }
     }
   },
