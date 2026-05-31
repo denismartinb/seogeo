@@ -49,7 +49,8 @@ class SeoMetadata(BaseModel):
     og_title: str = Field(..., description="Open Graph title")
     og_description: str = Field(..., description="Open Graph description")
     readability_score: str = Field(..., description="Legibilidad estimada: básico | medio | avanzado")
-    seo_score: int = Field(..., ge=0, le=100, description="Puntuación SEO estimada 0-100")
+    seo_score: int = Field(..., ge=0, le=100, description="Puntuación SEO 0-100 (suma de rúbrica)")
+    score_breakdown: Optional[dict] = Field(None, description="Desglose de puntuación por criterio")
     issues: list[str] = Field(..., description="Problemas SEO detectados")
     suggestions: list[str] = Field(..., description="Mejoras recomendadas")
 
@@ -57,7 +58,8 @@ class SeoMetadata(BaseModel):
 # ── GEO Outputs ───────────────────────────────────────────────────────────────
 
 class GeoAnalysis(BaseModel):
-    geo_score: int = Field(..., ge=0, le=100, description="Puntuación GEO 0-100")
+    geo_score: int = Field(..., ge=0, le=100, description="Puntuación GEO 0-100 (suma de rúbrica)")
+    score_breakdown: Optional[dict] = Field(None, description="Desglose de puntuación por criterio")
     ai_snippet: str = Field(..., description="Snippet optimizado para respuestas de IA (<280 chars)")
     answer_ready_summary: str = Field(..., description="Resumen estructurado listo para ser citado por IA")
     entity_coverage: list[str] = Field(..., description="Entidades nombradas detectadas (personas, lugares, marcas)")

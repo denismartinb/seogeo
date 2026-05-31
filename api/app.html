@@ -288,14 +288,26 @@ input, textarea, select { font-family: inherit; }
         {id:'aio', name:'Google AI Overviews', cited:false, mention:Math.min(95,Math.round(base*0.65)), note:'Sin aparición en el resumen IA'},
         {id:'gemini', name:'Gemini', cited:citLike==='alta', mention:Math.min(95,Math.round(base*0.75)), note: citLike==='alta'?'Citado con enlace directo':'Aparece sin enlace directo'},
       ],
-      CATEGORIES: [
-        {id:'content', lane:'seo', label:'Contenido y relevancia', score:Math.min(95,seoS+5), items:((seo.secondary_keywords||[]).length||9)+' señales'},
-        {id:'structure', lane:'seo', label:'Estructura y encabezados', score:Math.max(20,seoS-8), items:'7 señales'},
-        {id:'technical', lane:'seo', label:'Técnico y rendimiento', score:Math.min(95,seoS+12), items:'11 señales'},
-        {id:'answerability', lane:'geo', label:'Respuesta directa (GEO)', score:Math.max(20,geoS-14), items:'6 señales'},
-        {id:'citability', lane:'geo', label:'Citabilidad y fuentes', score:geoS, items:'8 señales'},
-        {id:'authority', lane:'geo', label:'Autoridad y E-E-A-T', score:Math.min(90,geoS+8), items:'5 señales'},
-      ],
+      CATEGORIES: (function() {
+        var sb = seo.score_breakdown || {};
+        var gb = geo.score_breakdown || {};
+        // Max pts per block → convert to 0-100 scale for display
+        function pct(v, max) { return v==null ? null : Math.round(Math.min(100, (v/max)*100)); }
+        return [
+          {id:'title_h1',      lane:'seo', label:'Título y H1',           score: pct(sb.title_h1,15)      || Math.max(10,seoS-15), items:'15 pts'},
+          {id:'meta',          lane:'seo', label:'Meta description',       score: pct(sb.meta_description,10) || Math.max(10,seoS-20), items:'10 pts'},
+          {id:'structure',     lane:'seo', label:'Estructura de contenido',score: pct(sb.content_structure,15) || Math.max(10,seoS-10), items:'15 pts'},
+          {id:'quality',       lane:'seo', label:'Calidad y extensión',    score: pct(sb.content_quality,20)  || Math.max(10,seoS-5),  items:'20 pts'},
+          {id:'keywords',      lane:'seo', label:'Keywords y optimización',score: pct(sb.keywords,20)          || Math.max(10,seoS-8),  items:'20 pts'},
+          {id:'technical',     lane:'seo', label:'Schema y técnico',       score: pct(sb.technical,20)         || Math.max(10,seoS-12), items:'20 pts'},
+          {id:'direct_answer', lane:'geo', label:'Respuesta directa',      score: pct(gb.direct_answer,20)     || Math.max(10,geoS-15), items:'20 pts'},
+          {id:'factual',       lane:'geo', label:'Densidad factual',       score: pct(gb.factual_density,20)   || Math.max(10,geoS-20), items:'20 pts'},
+          {id:'entities',      lane:'geo', label:'Cobertura de entidades', score: pct(gb.entity_coverage,20)   || Math.max(10,geoS-18), items:'20 pts'},
+          {id:'ai_structure',  lane:'geo', label:'Estructura para IA',     score: pct(gb.ai_structure,20)      || Math.max(10,geoS-12), items:'20 pts'},
+          {id:'authority',     lane:'geo', label:'Autoridad E-E-A-T',      score: pct(gb.authority,10)         || Math.max(10,geoS-5),  items:'10 pts'},
+          {id:'schema_geo',    lane:'geo', label:'Schema.org para IA',     score: pct(gb.structured_data,10)   || Math.max(10,geoS-8),  items:'10 pts'},
+        ];
+      })(),
       CONTENT: (function() {
         var blocks = [];
         // Use the actual current H1 from the page (not the LLM-suggested one)

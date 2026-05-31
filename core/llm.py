@@ -36,7 +36,7 @@ def _call_gemini_sync(model_name: str, prompt: str, json_mode: bool) -> str:
     """Llamada síncrona a Gemini — se ejecuta en el ThreadPoolExecutor."""
     client = _get_client()
     config = types.GenerateContentConfig(
-        temperature=0.2,
+        temperature=0.1,   # lower = more deterministic scoring
         response_mime_type="application/json" if json_mode else "text/plain",
     )
     response = client.models.generate_content(
