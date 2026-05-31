@@ -1885,7 +1885,7 @@ function PreviewPane({ selectedIds, appliedIds = [], mode, setMode }) {
 
   const controls = (big) => (
     <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-      <Segmented value={view} onChange={setView} options={[["content", "Contenido"], ["real", "Página real"]]} size="sm" />
+      <Segmented value={view} onChange={setView} options={[["content", "🤖 Vista GEO"], ["real", "🔍 Vista SEO"]]} size="sm" />
       {view === "content" && <Segmented value={mode} onChange={setMode} options={[["before", "Antes"], ["after", "Después"]]} size="sm" />}
       <Segmented value={device} onChange={setDevice} options={[["desktop", "Escritorio"], ["mobile", "Móvil"]]} size="sm" />
       <button onClick={() => setMaxed(!big)} title={big ? "Cerrar" : "Ampliar"}
@@ -1911,6 +1911,10 @@ function PreviewPane({ selectedIds, appliedIds = [], mode, setMode }) {
           {view === "real"
             ? <RealPageView ids={afterIds} appliedIds={appliedIds} />
             : <>
+                <div style={{ marginBottom: 14, padding: "7px 11px", borderRadius: 8, background: "var(--geo-soft)", border: "1px solid var(--border-2)", display: "flex", alignItems: "center", gap: 7, fontSize: "var(--fs-xs)", color: "var(--geo-ink)" }}>
+                  <Icon name="spark" size={13} stroke={2} />
+                  <span><b>Vista GEO:</b> texto estructurado tal como lo leen ChatGPT, Perplexity y Gemini para decidir si te citan.</span>
+                </div>
                 {blocks.map((b, i) => <ContentBlock key={b.id + i} b={b} mode={mode} />)}
                 {mode === "after" && contentChanges === 0 && (
                   <div style={{ textAlign: "center", color: "var(--faint)", fontSize: "var(--fs-sm)", padding: "24px 0", borderTop: "1px dashed var(--border)", marginTop: 14 }}>
@@ -1928,7 +1932,11 @@ function PreviewPane({ selectedIds, appliedIds = [], mode, setMode }) {
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, padding: "0 4px 12px", flexShrink: 0, flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <Icon name="eye" size={16} style={{ color: "var(--muted)" }} />
-          <span style={{ fontWeight: 700, fontSize: "var(--fs-sm)" }}>Vista previa <span style={{ color: "var(--faint)", fontWeight: 500 }}>· simulación</span></span>
+          <span style={{ fontWeight: 700, fontSize: "var(--fs-sm)" }}>
+            {view === "real"
+              ? <><span>Vista SEO</span> <span style={{ color: "var(--faint)", fontWeight: 500 }}>· lo que ven Google y los usuarios</span></>
+              : <><span>Vista GEO</span> <span style={{ color: "var(--faint)", fontWeight: 500 }}>· lo que procesan los LLMs para citarte</span></>}
+          </span>
           {newChanges > 0 && <Pill color="var(--geo-ink)" soft="var(--geo-soft)">{newChanges} cambio{newChanges > 1 ? "s" : ""}</Pill>}
         </div>
         {controls(false)}
@@ -1940,7 +1948,7 @@ function PreviewPane({ selectedIds, appliedIds = [], mode, setMode }) {
           <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", flexDirection: "column", height: "100%", maxWidth: 1100, width: "100%", margin: "0 auto" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 12, color: "white", flexWrap: "wrap" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <Icon name="eye" size={17} /><span style={{ fontWeight: 700 }}>Vista previa ampliada</span>
+                <Icon name="eye" size={17} /><span style={{ fontWeight: 700 }}>{view === "real" ? "Vista SEO ampliada" : "Vista GEO ampliada"}</span>
                 <span className="mono" style={{ fontSize: "var(--fs-xs)", opacity: 0.8 }}>{D.TARGET.url}</span>
               </div>
               {controls(true)}
