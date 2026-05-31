@@ -2041,7 +2041,20 @@ function SuggestionCard({ s, on, onToggle, applied, onGenerate, generating, gene
               ? <Pill color="var(--good)" soft="var(--good-soft)" icon="check">Aplicada</Pill>
               : <Pill color={prioColor.c} soft={prioColor.s} icon={s.priority === "Quick win" ? "bolt" : undefined}>{s.priority}</Pill>}
           </div>
-          <div style={{ fontWeight: 600, fontSize: "var(--fs-base)", lineHeight: 1.35 }}>{s.title}</div>
+          <div style={{ fontWeight: 600, fontSize: "var(--fs-base)", lineHeight: 1.35, display: "flex", alignItems: "baseline", gap: 7, flexWrap: "wrap" }}>
+            {(() => {
+              const actionWords = { "MODIFICA": {c:"var(--seo-ink)",bg:"var(--seo-soft)"}, "AÑADE": {c:"var(--geo-ink)",bg:"var(--geo-soft)"}, "ELIMINA": {c:"var(--poor)",bg:"var(--poor-soft)"}, "AÑADIR": {c:"var(--geo-ink)",bg:"var(--geo-soft)"}, "MODIFICAR": {c:"var(--seo-ink)",bg:"var(--seo-soft)"} };
+              const title = s.title || "";
+              const match = Object.keys(actionWords).find(w => title.toUpperCase().startsWith(w));
+              if (!match) return <span>{title}</span>;
+              const col = actionWords[match];
+              const rest = title.slice(match.length).replace(/^[\s:]+/, "");
+              return <>
+                <span style={{ display:"inline-flex", alignItems:"center", padding:"2px 8px", borderRadius:99, fontSize:"var(--fs-xs)", fontWeight:700, color:col.c, background:col.bg, whiteSpace:"nowrap", letterSpacing:"0.02em" }}>{match.charAt(0)+match.slice(1).toLowerCase()}</span>
+                <span>{rest}</span>
+              </>;
+            })()}
+          </div>
           <div style={{ fontSize: "var(--fs-xs)", color: "var(--muted)", marginTop: 3, lineHeight: 1.45 }}>{s.desc}</div>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 9, flexWrap: "wrap" }}>
             <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: "var(--fs-xs)", fontWeight: 700, color: "var(--good)" }}>
