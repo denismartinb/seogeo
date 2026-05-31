@@ -592,9 +592,10 @@ async def _run_full_analysis(type_: str, input_data: dict) -> dict:
         )
 
     prompt = _build_content_prompt(text_body)
-    # Prepend structural metadata so LLM knows exactly what exists on the page
+    # Prepend structural metadata so LLM knows exactly what exists on the page.
+    # The reminder "Solo JSON" prevents the model from adding prose before the JSON.
     if structure_ctx:
-        prompt = f"ESTRUCTURA ACTUAL DE LA PÁGINA:\n{structure_ctx}\n\n{prompt}"
+        prompt = f"ESTRUCTURA ACTUAL DE LA PÁGINA (usa esta info para dar sugerencias precisas):\n{structure_ctx}\n\nIMPORTANTE: Tu respuesta debe ser SOLO el JSON solicitado, sin texto previo ni explicaciones.\n\n{prompt}"
 
     seo_raw, geo_raw = await asyncio.gather(
         generate(SEO_SYSTEM, prompt),
