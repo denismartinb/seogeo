@@ -42,6 +42,15 @@ async def init_db() -> None:
                 FOREIGN KEY (analysis_id) REFERENCES analyses(id) ON DELETE CASCADE
             )
         """)
+        await db.execute("""
+            CREATE TABLE IF NOT EXISTS content_cache (
+                content_hash    TEXT PRIMARY KEY,
+                result          TEXT NOT NULL,
+                created_at      TEXT NOT NULL,
+                hit_count       INTEGER DEFAULT 0,
+                last_hit        TEXT
+            )
+        """)
         await db.execute("CREATE INDEX IF NOT EXISTS idx_analyses_session ON analyses(session_id)")
         await db.execute("CREATE INDEX IF NOT EXISTS idx_analyses_created ON analyses(created_at DESC)")
         await db.execute("CREATE INDEX IF NOT EXISTS idx_improvements_analysis ON improvements(analysis_id)")
@@ -133,6 +142,36 @@ async def delete_analysis(analysis_id: str) -> bool:
         cur = await db.execute("DELETE FROM analyses WHERE id=?", (analysis_id,))
         await db.commit()
         return cur.rowcount > 0
+
+
+async def get_content_cache(content_hash: str) -> Optional[dict]:
+    """Returns cached analysis result for this content hash, or None."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        db.row_factory = aiosqlite.Row
+        cur = await db.execute(
+            "SELECT result FROM content_cache WHERE content_hash=?",
+            (content_hash,),
+        )
+        row = await cur.fetchone()
+        if not row:
+            return None
+        # Update hit stats asynchronously
+        await db.execute(
+            "UPDATE content_cache SET hit_count=hit_count+1, last_hit=? WHERE content_hash=?",
+            (datetime.utcnow().isoformat(), content_hash),
+        )
+        await db.commit()
+        return json.loads(row["result"])
+
+
+async def save_content_cache(content_hash: str, result: dict) -> None:
+    """Saves analysis result keyed by content hash."""
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute(
+            "INSERT OR REPLACE INTO content_cache(content_hash, result, created_at, hit_count) VALUES (?,?,?,0)",
+            (content_hash, json.dumps(result, ensure_ascii=False), datetime.utcnow().isoformat()),
+        )
+        await db.commit()
 
 
 async def get_cached_improvements(analysis_id: str) -> Optional[dict]:

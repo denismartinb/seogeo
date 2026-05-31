@@ -26,8 +26,13 @@ from slowapi.errors import RateLimitExceeded
 from core.auth import verify_key
 from core.llm import generate, GeminiUnavailableError
 from core.rate_limit import limiter, get_limit
+import hashlib
 from core.scraper import fetch_url_text, fetch_url_content, _build_structure_context
-from core.scorer import score_content
+from core.db import (
+    init_db, save_analysis, list_analyses, get_analysis, delete_analysis,
+    get_cached_improvements, save_improvements,
+    get_content_cache, save_content_cache,
+)
 from core.models import (
     TextInput, UrlInput, TextInputBody, UrlInputBody,
     SeoMetadata, GeoAnalysis, FullAnalysis,
@@ -39,7 +44,7 @@ from core.models import (
     GenerateBlockBody, GenerateBlockOutput,
 )
 from core.prompts import SEO_SYSTEM, GEO_SYSTEM, KEYWORD_SYSTEM, SCHEMA_SYSTEM, IMPROVEMENTS_SYSTEM
-from core.db import init_db, save_analysis, list_analyses, get_analysis, delete_analysis, get_cached_improvements, save_improvements
+# (db imports consolidated above)
 
 IMPROVE_SYSTEM = """Eres un experto en SEO y GEO (Generative Engine Optimization). Mejoras textos aplicando instrucciones específicas para optimizarlos tanto para Google como para aparecer en respuestas de ChatGPT, Gemini y Perplexity. Mantienes siempre el tono, estilo y longitud similar al original."""
 
@@ -558,68 +563,77 @@ async def serve_app():
 
 # ── V2 API ────────────────────────────────────────────────────────────────────
 
+def _content_hash(text: str, target_keyword: str = "", language: str = "es") -> str:
+    """SHA-256 of normalized content + keyword + language.
+    Same content → same hash → cache hit regardless of URL or session."""
+    payload = f"{text.strip()}|{(target_keyword or '').lower().strip()}|{language.lower()}"
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
 async def _run_full_analysis(type_: str, input_data: dict) -> dict:
-    """Runs SEO+GEO (or keywords) analysis and returns a serializable dict."""
+    """
+    Runs SEO+GEO (or keywords) analysis and returns a serializable dict.
+
+    Cache strategy:
+      - Hash is computed from the scraped/input CONTENT (not the URL).
+      - Same content + keyword + language → always returns the cached result.
+      - If the page changes (different scraped text) → new hash → new analysis.
+    """
     import asyncio
 
     if type_ == "keywords":
         text = input_data.get("text", "")
         language = input_data.get("language", "es")
+        # Cache keywords too: same seed + language → same result
+        kw_hash = _content_hash(text, language=language)
+        cached = await get_content_cache(kw_hash)
+        if cached:
+            return cached
         prompt = f"Tema/keyword semilla: {text}\nIdioma: {language}"
         raw = await generate(KEYWORD_SYSTEM, prompt)
-        result = _parse_json(raw, KeywordResearchOutput)
-        return result.model_dump()
+        result = _parse_json(raw, KeywordResearchOutput).model_dump()
+        await save_content_cache(kw_hash, result)
+        return result
 
     page_metadata: dict = {}
 
     if type_ == "url":
         url_str = input_data.get("url", "")
         fetched_text, page_metadata = await fetch_url_content(url_str)
-        structure_ctx = _build_structure_context(page_metadata)
-        text_body = TextInput(
-            text=fetched_text,
-            url=url_str,
-            language=input_data.get("language", "es"),
-            target_keyword=input_data.get("target_keyword"),
-        )
     else:
         fetched_text = input_data.get("text", "")
-        structure_ctx = ""
-        text_body = TextInput(
-            text=fetched_text,
-            url=input_data.get("url"),
-            language=input_data.get("language", "es"),
-            target_keyword=input_data.get("target_keyword"),
-        )
+        page_metadata = {}
 
-    # ── 1. Deterministic scoring (always consistent) ──────────────────────────
-    scores = score_content(
+    target_keyword = input_data.get("target_keyword", "") or ""
+    language = input_data.get("language", "es") or "es"
+
+    # ── Cache lookup ───────────────────────────────────────────────────────────
+    content_hash = _content_hash(fetched_text, target_keyword, language)
+    cached = await get_content_cache(content_hash)
+    if cached:
+        # Re-attach metadata in case it changed (doesn't affect score)
+        cached["_page_metadata"] = page_metadata
+        return cached
+
+    # ── Cache miss → full Gemini analysis ─────────────────────────────────────
+    text_body = TextInput(
         text=fetched_text,
-        metadata=page_metadata,
-        target_keyword=input_data.get("target_keyword"),
+        url=input_data.get("url") if type_ == "url" else input_data.get("url"),
+        language=language,
+        target_keyword=target_keyword or None,
     )
-    seo_computed = scores["seo"]
-    geo_computed = scores["geo"]
 
-    # ── 2. Build LLM prompt with pre-computed scores injected ─────────────────
     prompt = _build_content_prompt(text_body)
 
-    score_ctx = f"""SCORES PRECALCULADOS (usa estos valores exactos en el JSON, no los recalcules):
-SEO_SCORE: {seo_computed['seo_score']}
-SEO_BREAKDOWN: {seo_computed['score_breakdown']}
-GEO_SCORE: {geo_computed['geo_score']}
-GEO_BREAKDOWN: {geo_computed['score_breakdown']}
-CITATION_LIKELIHOOD: {geo_computed['citation_likelihood_computed']}
-WORD_COUNT: {seo_computed['word_count']}
+    # Prepend structural context for URL analysis
+    if page_metadata:
+        structure_ctx = _build_structure_context(page_metadata)
+        prompt = (
+            f"ESTRUCTURA ACTUAL DE LA PÁGINA:\n{structure_ctx}\n\n"
+            "IMPORTANTE: Tu respuesta debe ser SOLO el JSON solicitado, sin texto previo.\n\n"
+            + prompt
+        )
 
-"""
-    if structure_ctx:
-        score_ctx += f"ESTRUCTURA ACTUAL DE LA PÁGINA:\n{structure_ctx}\n\n"
-
-    score_ctx += "IMPORTANTE: Tu respuesta debe ser SOLO el JSON solicitado, sin texto previo.\n\n"
-    prompt = score_ctx + prompt
-
-    # ── 3. LLM generates qualitative fields only ──────────────────────────────
     seo_raw, geo_raw = await asyncio.gather(
         generate(SEO_SYSTEM, prompt),
         generate(GEO_SYSTEM, prompt),
@@ -627,24 +641,15 @@ WORD_COUNT: {seo_computed['word_count']}
     seo = _parse_json(seo_raw, SeoMetadata)
     geo = _parse_json(geo_raw, GeoAnalysis)
 
-    # ── 4. Override qualitative scores with deterministic ones ─────────────────
-    # The LLM might still return a different number despite instructions —
-    # we always enforce the computed score.
-    seo_dict = seo.model_dump()
-    seo_dict["seo_score"] = seo_computed["seo_score"]
-    seo_dict["score_breakdown"] = seo_computed["score_breakdown"]
-
-    geo_dict = geo.model_dump()
-    geo_dict["geo_score"] = geo_computed["geo_score"]
-    geo_dict["score_breakdown"] = geo_computed["score_breakdown"]
-    geo_dict["citation_likelihood"] = geo_computed["citation_likelihood_computed"]
-
-    result = {
-        "seo": seo_dict,
-        "geo": geo_dict,
-    }
+    result = FullAnalysis(seo=seo, geo=geo).model_dump()
     result["_original_text"] = fetched_text[:8000] if fetched_text else ""
     result["_page_metadata"] = page_metadata
+
+    # ── Save to cache ──────────────────────────────────────────────────────────
+    # Store without _page_metadata (it's request-specific and not part of analysis)
+    cacheable = {k: v for k, v in result.items() if k != "_page_metadata"}
+    await save_content_cache(content_hash, cacheable)
+
     return result
 
 
