@@ -221,7 +221,8 @@ input, textarea, select { font-family: inherit; }
   }
   window._sessionId = SID;
 
-  function getKey() { return localStorage.getItem('sg_api_key') || ''; }
+  var _APP_KEY = '__APP_API_KEY__';  // replaced by server at /app
+  function getKey() { return localStorage.getItem('sg_api_key') || _APP_KEY || ''; }
   function headers(extra) {
     var h = Object.assign({'Content-Type':'application/json'}, extra||{});
     var k = getKey();
@@ -1347,9 +1348,7 @@ function InputScreen({ onAnalyze, analysisError }) {
                 <div style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--faint)", fontSize: "var(--fs-xs)", whiteSpace: "nowrap" }}>
                   <Icon name="clock" size={13} /> ~25 s
                 </div>
-              </div>
-            );
-          })()}
+            </div>
         </div>
 
         {/* error from last analysis attempt */}

@@ -532,10 +532,26 @@ async def generate_schema(
 
 @app.get("/app", response_class=HTMLResponse, include_in_schema=False)
 async def serve_app():
-    """SEO & GEO Optimizer — aplicación web."""
+    """SEO & GEO Optimizer — aplicación web.
+
+    Inyecta la primera API_KEY del servidor como token de la app,
+    de modo que el frontend funciona sin configuración adicional.
+    En modo dev (ENVIRONMENT=dev) la auth está desactivada y la key queda vacía.
+    """
     html_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "app.html")
     with open(html_path, "r", encoding="utf-8") as f:
-        return f.read()
+        html = f.read()
+
+    # Inject app token: first API key in list, or empty string in dev
+    app_key = ""
+    if os.environ.get("ENVIRONMENT", "prod") != "dev":
+        raw_keys = os.environ.get("API_KEYS", "")
+        keys = [k.strip() for k in raw_keys.split(",") if k.strip()]
+        if keys:
+            app_key = keys[0]
+
+    html = html.replace("'__APP_API_KEY__'", f"'{app_key}'")
+    return HTMLResponse(content=html)
 
 
 # ── V2 API ────────────────────────────────────────────────────────────────────
