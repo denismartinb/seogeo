@@ -298,7 +298,16 @@ input, textarea, select { font-family: inherit; }
       ],
       CONTENT: (function() {
         var blocks = [];
-        if (seo.title) blocks.push({id:'h1',type:'h1',text:seo.title});
+        // Use the actual current H1 from the page (not the LLM-suggested one)
+        var meta = result._page_metadata || {};
+        var actualH1 = meta.h1 && meta.h1.length > 0 ? meta.h1[0] : null;
+        var h1Text = actualH1 ? actualH1.text : (seo.title || '');
+        var h1Hidden = actualH1 && actualH1.hidden;
+        if (h1Text) blocks.push({
+          id:'h1', type:'h1',
+          text: h1Text + (h1Hidden ? ' [visualmente oculto]' : ''),
+          _hidden: h1Hidden, _actual: true
+        });
         var rawText = (result._original_text || opts.text || (mode!=='url' ? inputVal : ''));
         if (rawText && rawText.length > 50) {
           var lines = rawText.split(/\n+/).map(function(l){return l.trim();}).filter(function(l){return l.length>20;});
@@ -334,6 +343,7 @@ input, textarea, select { font-family: inherit; }
       COVERAGE:{days:[],series:[]},
       HISTORY: prevHistory,
       _analysisId: data.analysis_id,
+      _pageMetadata: result._page_metadata || {},
       _rawSeo: seo, _rawGeo: geo,
     };
   };
@@ -2199,7 +2209,9 @@ function Report({ scorecard, onLoadSuggestions, loadingImps }) {
     if (!s || generatingId) return;
     setGeneratingId(id);
     try {
-      var originalText = (D._rawSeo&&D._rawSeo.title?D._rawSeo.title+'. ':'') + ((D._rawGeo&&D._rawGeo.answer_ready_summary)||'');
+      var meta = D._pageMetadata || {};
+      var metaCtx = meta.h1 ? 'H1 actual: ' + (meta.h1[0]||{}).text + (meta.h1[0]&&meta.h1[0].hidden?' (visualmente oculto)':'') + '. ' : '';
+      var originalText = metaCtx + (D._rawSeo&&D._rawSeo.title?D._rawSeo.title+'. ':'') + ((D._rawGeo&&D._rawGeo.answer_ready_summary)||'');
       var blockType = s.lane==='geo' ? (s.title.toLowerCase().includes('faq')||s.title.toLowerCase().includes('pregunta')?'faq':'answer') : 'section';
       var headers = {'Content-Type':'application/json'};
       var key = window._APP_KEY || localStorage.getItem('sg_api_key') || '';

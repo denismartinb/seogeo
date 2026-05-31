@@ -26,7 +26,7 @@ from slowapi.errors import RateLimitExceeded
 from core.auth import verify_key
 from core.llm import generate, GeminiUnavailableError
 from core.rate_limit import limiter, get_limit
-from core.scraper import fetch_url_text
+from core.scraper import fetch_url_text, fetch_url_content, _build_structure_context
 from core.models import (
     TextInput, UrlInput, TextInputBody, UrlInputBody,
     SeoMetadata, GeoAnalysis, FullAnalysis,
@@ -569,9 +569,12 @@ async def _run_full_analysis(type_: str, input_data: dict) -> dict:
         result = _parse_json(raw, KeywordResearchOutput)
         return result.model_dump()
 
+    page_metadata: dict = {}
+
     if type_ == "url":
         url_str = input_data.get("url", "")
-        fetched_text = await fetch_url_text(url_str)
+        fetched_text, page_metadata = await fetch_url_content(url_str)
+        structure_ctx = _build_structure_context(page_metadata)
         text_body = TextInput(
             text=fetched_text,
             url=url_str,
@@ -579,14 +582,20 @@ async def _run_full_analysis(type_: str, input_data: dict) -> dict:
             target_keyword=input_data.get("target_keyword"),
         )
     else:
+        fetched_text = input_data.get("text", "")
+        structure_ctx = ""
         text_body = TextInput(
-            text=input_data.get("text", ""),
+            text=fetched_text,
             url=input_data.get("url"),
             language=input_data.get("language", "es"),
             target_keyword=input_data.get("target_keyword"),
         )
 
     prompt = _build_content_prompt(text_body)
+    # Prepend structural metadata so LLM knows exactly what exists on the page
+    if structure_ctx:
+        prompt = f"ESTRUCTURA ACTUAL DE LA PÁGINA:\n{structure_ctx}\n\n{prompt}"
+
     seo_raw, geo_raw = await asyncio.gather(
         generate(SEO_SYSTEM, prompt),
         generate(GEO_SYSTEM, prompt),
@@ -594,9 +603,9 @@ async def _run_full_analysis(type_: str, input_data: dict) -> dict:
     seo = _parse_json(seo_raw, SeoMetadata)
     geo = _parse_json(geo_raw, GeoAnalysis)
     result = FullAnalysis(seo=seo, geo=geo).model_dump()
-    # Attach original text so the frontend can build a real content preview
-    original = fetched_text if type_ == "url" else input_data.get("text", "")
-    result["_original_text"] = original[:8000] if original else ""
+    # Attach original text and metadata for the frontend preview
+    result["_original_text"] = fetched_text[:8000] if fetched_text else ""
+    result["_page_metadata"] = page_metadata
     return result
 
 
