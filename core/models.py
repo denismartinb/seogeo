@@ -24,6 +24,7 @@ class UrlInput(BaseModel):
 # sin validación estricta — _merge_text_input/_merge_url_input hacen la validación real)
 class TextInputBody(BaseModel):
     text: Optional[str] = Field(None, description="Texto o contenido a analizar")
+    content: Optional[str] = Field(None, description="Alias de 'text' (retrocompatibilidad)")
     url: Optional[str] = Field(None, description="URL de origen (opcional)")
     language: Optional[str] = Field(None, description="Idioma objetivo: es, en, fr, de, pt...")
     target_keyword: Optional[str] = Field(None, description="Keyword principal a optimizar")

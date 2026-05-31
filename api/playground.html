@@ -1,0 +1,959 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SEO & GEO API — Playground</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #f8f9fa;
+      --surface: #ffffff;
+      --border: #e9ecef;
+      --border-focus: #6366f1;
+      --text: #1a1a2e;
+      --text-muted: #6b7280;
+      --text-light: #9ca3af;
+      --accent: #6366f1;
+      --accent-light: #eef2ff;
+      --accent-hover: #4f46e5;
+      --success: #10b981;
+      --success-light: #d1fae5;
+      --error: #ef4444;
+      --error-light: #fee2e2;
+      --warning: #f59e0b;
+      --warning-light: #fef3c7;
+      --info: #3b82f6;
+      --info-light: #dbeafe;
+      --purple: #8b5cf6;
+      --purple-light: #ede9fe;
+      --pink: #ec4899;
+      --pink-light: #fce7f3;
+      --radius: 12px;
+      --radius-sm: 8px;
+    }
+    body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+
+    /* Header */
+    header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 32px; position: sticky; top: 0; z-index: 100; }
+    .header-inner { max-width: 1280px; margin: 0 auto; height: 64px; display: flex; align-items: center; justify-content: space-between; }
+    .logo { display: flex; align-items: center; gap: 12px; text-decoration: none; color: inherit; }
+    .logo-icon { width: 36px; height: 36px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border-radius: var(--radius-sm); display: flex; align-items: center; justify-content: center; font-size: 18px; }
+    .logo-text { font-size: 15px; font-weight: 600; letter-spacing: -.3px; }
+    .logo-badge { font-size: 11px; font-weight: 500; background: var(--accent-light); color: var(--accent); padding: 2px 8px; border-radius: 99px; }
+    .status-dot { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-muted); }
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-light); transition: background .3s; }
+    .dot.online { background: var(--success); box-shadow: 0 0 0 3px #d1fae5; }
+    .dot.offline { background: var(--error); box-shadow: 0 0 0 3px #fee2e2; }
+
+    /* Layout */
+    .app { flex: 1; max-width: 1280px; margin: 0 auto; width: 100%; padding: 32px; display: grid; grid-template-columns: 250px 1fr; gap: 28px; align-items: start; }
+    .sidebar { position: sticky; top: 88px; }
+    .sidebar-label { font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text-light); padding: 0 12px; margin-bottom: 8px; }
+    .nav { display: flex; flex-direction: column; gap: 2px; margin-bottom: 24px; }
+    .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: var(--radius-sm); cursor: pointer; font-size: 14px; font-weight: 500; color: var(--text-muted); transition: all .15s; border: none; background: none; width: 100%; text-align: left; }
+    .nav-item:hover { background: var(--border); color: var(--text); }
+    .nav-item.active { background: var(--accent-light); color: var(--accent); }
+    .nav-badge { font-size: 10px; font-weight: 700; font-family: 'JetBrains Mono', monospace; padding: 2px 6px; border-radius: 4px; color: #fff; }
+    .nav-badge.get { background: var(--success); }
+    .nav-badge.post { background: var(--accent); }
+    .base-url-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; }
+    .base-url-label { font-size: 11px; color: var(--text-light); margin-bottom: 4px; font-weight: 500; }
+    .base-url-input { width: 100%; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text); border: none; outline: none; background: transparent; }
+
+    /* Panel */
+    .panel { display: flex; flex-direction: column; gap: 20px; }
+    .section { display: none; flex-direction: column; gap: 20px; }
+    .section.active { display: flex; }
+
+    /* Marketing header */
+    .mkt-header { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .mkt-hero { padding: 28px 32px 24px; border-bottom: 1px solid var(--border); }
+    .mkt-eyebrow { font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; }
+    .mkt-title { font-size: 22px; font-weight: 700; letter-spacing: -.4px; margin-bottom: 10px; line-height: 1.2; }
+    .mkt-desc { font-size: 14px; color: var(--text-muted); line-height: 1.7; max-width: 640px; }
+    .mkt-cases { padding: 20px 32px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .case-card { padding: 14px 16px; border-radius: var(--radius-sm); border: 1px solid var(--border); }
+    .case-icon { font-size: 20px; margin-bottom: 8px; }
+    .case-title { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+    .case-desc { font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+
+    /* Form card */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .card-header { padding: 18px 24px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 12px; }
+    .method-badge { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; padding: 4px 10px; border-radius: 6px; }
+    .method-badge.GET { background: var(--success-light); color: #065f46; }
+    .method-badge.POST { background: var(--accent-light); color: #3730a3; }
+    .endpoint-path { font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 500; }
+    .card-body { padding: 20px 24px; }
+    .card-footer { padding: 14px 24px; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .field { margin-bottom: 16px; }
+    .field:last-child { margin-bottom: 0; }
+    label { display: block; font-size: 13px; font-weight: 500; margin-bottom: 6px; }
+    label .hint { font-weight: 400; color: var(--text-light); font-size: 12px; margin-left: 4px; }
+    input[type=text], textarea, select { width: 100%; font-family: 'Inter', sans-serif; font-size: 14px; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 14px; outline: none; transition: border-color .15s, box-shadow .15s; resize: vertical; }
+    input[type=text]:focus, textarea:focus, select:focus { border-color: var(--border-focus); box-shadow: 0 0 0 3px rgba(99,102,241,.1); }
+    textarea { min-height: 110px; font-family: 'JetBrains Mono', monospace; font-size: 13px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-family: 'Inter', sans-serif; font-size: 14px; font-weight: 600; padding: 10px 22px; border-radius: var(--radius-sm); border: none; cursor: pointer; transition: all .15s; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover:not(:disabled) { background: var(--accent-hover); transform: translateY(-1px); box-shadow: 0 4px 12px rgba(99,102,241,.3); }
+    .btn-primary:disabled { opacity: .55; cursor: not-allowed; transform: none; }
+    .loading-row { display: none; align-items: center; gap: 10px; font-size: 13px; color: var(--text-muted); }
+    .loading-row.visible { display: flex; }
+    .spinner { width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: spin .7s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Response */
+    .response-area { display: none; }
+    .response-area.visible { display: flex; flex-direction: column; gap: 16px; }
+    .response-meta { display: flex; align-items: center; gap: 12px; padding: 14px 20px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); }
+    .res-status { font-size: 13px; font-weight: 600; padding: 4px 12px; border-radius: 99px; }
+    .res-status.ok { background: var(--success-light); color: #065f46; }
+    .res-status.err { background: var(--error-light); color: #991b1b; }
+    .res-time { font-size: 12px; color: var(--text-light); }
+
+    /* Visual result cards */
+    .visual-result { display: flex; flex-direction: column; gap: 14px; }
+    .vr-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+    .vr-section-title { padding: 14px 20px; border-bottom: 1px solid var(--border); font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; color: var(--text-muted); text-transform: uppercase; letter-spacing: .06em; font-size: 11px; }
+    .vr-section-title span { font-size: 15px; }
+    .vr-body { padding: 16px 20px; display: flex; flex-direction: column; gap: 12px; }
+
+    /* Score ring */
+    .score-row { display: flex; gap: 12px; flex-wrap: wrap; }
+    .score-pill { flex: 1; min-width: 120px; background: var(--bg); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 16px; text-align: center; }
+    .score-num { font-size: 36px; font-weight: 800; line-height: 1; margin-bottom: 4px; }
+    .score-num.high { color: var(--success); }
+    .score-num.mid { color: var(--warning); }
+    .score-num.low { color: var(--error); }
+    .score-label { font-size: 12px; color: var(--text-muted); font-weight: 600; margin-bottom: 2px; }
+    .score-hint { font-size: 11px; color: var(--text-light); }
+    .score-bar-wrap { height: 6px; background: var(--border); border-radius: 99px; margin-top: 10px; }
+    .score-bar { height: 100%; border-radius: 99px; transition: width 1s ease; }
+    .score-bar.high { background: var(--success); }
+    .score-bar.mid { background: var(--warning); }
+    .score-bar.low { background: var(--error); }
+
+    /* Field rows */
+    .vr-field { display: flex; flex-direction: column; gap: 4px; }
+    .vr-field-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--text-light); display: flex; align-items: center; gap: 6px; }
+    .vr-field-value { font-size: 14px; color: var(--text); line-height: 1.5; padding: 10px 14px; background: var(--bg); border-radius: var(--radius-sm); border: 1px solid var(--border); }
+    .vr-field-value.code { font-family: 'JetBrains Mono', monospace; font-size: 13px; }
+    .vr-field-caption { font-size: 11px; color: var(--text-light); margin-top: 2px; }
+
+    /* Tags */
+    .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+    .tag { font-size: 12px; padding: 4px 12px; border-radius: 99px; font-weight: 500; }
+    .tag.accent { background: var(--accent-light); color: var(--accent); }
+    .tag.success { background: var(--success-light); color: #065f46; }
+    .tag.warning { background: var(--warning-light); color: #92400e; }
+    .tag.error { background: var(--error-light); color: #991b1b; }
+    .tag.purple { background: var(--purple-light); color: #5b21b6; }
+    .tag.info { background: var(--info-light); color: #1e40af; }
+
+    /* Badge pill */
+    .badge { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 600; padding: 5px 14px; border-radius: 99px; }
+    .badge.alta, .badge.high { background: var(--success-light); color: #065f46; }
+    .badge.media, .badge.mid { background: var(--warning-light); color: #92400e; }
+    .badge.baja, .badge.low { background: var(--error-light); color: #991b1b; }
+    .badge.avanzado { background: var(--purple-light); color: #5b21b6; }
+    .badge.medio { background: var(--info-light); color: #1e40af; }
+    .badge.básico, .badge.basico { background: var(--success-light); color: #065f46; }
+
+    /* List items */
+    .vr-list { display: flex; flex-direction: column; gap: 6px; }
+    .vr-list-item { display: flex; align-items: flex-start; gap: 10px; font-size: 13px; padding: 8px 12px; border-radius: var(--radius-sm); background: var(--bg); line-height: 1.5; }
+    .vr-list-item .li-icon { font-size: 14px; flex-shrink: 0; margin-top: 1px; }
+
+    /* OG Preview */
+    .og-preview { border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+    .og-preview-bar { height: 4px; background: linear-gradient(90deg, var(--accent), var(--purple)); }
+    .og-preview-body { padding: 14px 16px; }
+    .og-preview-domain { font-size: 11px; color: var(--text-light); margin-bottom: 4px; }
+    .og-preview-title { font-size: 15px; font-weight: 600; color: #1a0dab; margin-bottom: 4px; line-height: 1.3; }
+    .og-preview-desc { font-size: 13px; color: var(--text-muted); line-height: 1.5; }
+
+    /* Snippet box */
+    .snippet-box { background: linear-gradient(135deg, #eef2ff, #ede9fe); border: 1px solid #c7d2fe; border-radius: var(--radius-sm); padding: 16px; font-size: 14px; line-height: 1.7; font-style: italic; color: var(--text); position: relative; }
+    .snippet-box::before { content: '"'; font-size: 48px; line-height: 1; color: var(--accent); opacity: .3; position: absolute; top: 4px; left: 12px; }
+    .snippet-box-inner { padding-left: 28px; }
+
+    /* Keyword table */
+    .kw-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .kw-table th { text-align: left; padding: 8px 12px; background: var(--bg); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--text-light); border-bottom: 1px solid var(--border); }
+    .kw-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); vertical-align: top; line-height: 1.4; }
+    .kw-table tr:last-child td { border-bottom: none; }
+    .kw-table tr:hover td { background: var(--bg); }
+    .kw-keyword { font-weight: 600; color: var(--text); }
+    .intent-badge { font-size: 11px; padding: 2px 8px; border-radius: 99px; font-weight: 600; }
+    .intent-informacional { background: var(--info-light); color: #1e40af; }
+    .intent-transaccional { background: var(--success-light); color: #065f46; }
+    .intent-comercial { background: var(--warning-light); color: #92400e; }
+    .intent-navegacional { background: var(--purple-light); color: #5b21b6; }
+
+    /* JSON collapsible */
+    details.json-collapse { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; }
+    details.json-collapse summary { display: flex; align-items: center; justify-content: space-between; padding: 12px 18px; font-size: 13px; font-weight: 600; color: var(--text-muted); cursor: pointer; list-style: none; user-select: none; gap: 8px; }
+    details.json-collapse summary::-webkit-details-marker { display: none; }
+    details.json-collapse summary::after { content: '▸ Ver JSON'; font-size: 12px; color: var(--accent); font-weight: 500; }
+    details.json-collapse[open] summary::after { content: '▾ Ocultar JSON'; }
+    details.json-collapse .json-inner { padding: 0 14px 14px; }
+    .code-block { background: #1e1e2e; border-radius: var(--radius-sm); padding: 16px; overflow: auto; max-height: 400px; position: relative; }
+    .code-block pre { font-family: 'JetBrains Mono', monospace; font-size: 12.5px; line-height: 1.7; color: #cdd6f4; white-space: pre-wrap; word-break: break-word; }
+    .copy-btn { position: absolute; top: 10px; right: 10px; background: rgba(255,255,255,.1); border: none; color: #cdd6f4; font-size: 12px; padding: 5px 10px; border-radius: 5px; cursor: pointer; transition: background .15s; font-family: 'Inter', sans-serif; }
+    .copy-btn:hover { background: rgba(255,255,255,.2); }
+    .json-key { color: #89b4fa; }
+    .json-str { color: #a6e3a1; }
+    .json-num { color: #fab387; }
+    .json-bool { color: #cba6f7; }
+    .json-null { color: #f38ba8; }
+
+    /* Home hero */
+    .home-hero { background: linear-gradient(135deg, #eef2ff 0%, #ede9fe 50%, #fce7f3 100%); border: 1px solid #c7d2fe; border-radius: var(--radius); padding: 36px 40px; }
+    .home-hero h1 { font-size: 28px; font-weight: 800; letter-spacing: -.6px; margin-bottom: 12px; background: linear-gradient(135deg, #6366f1, #8b5cf6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+    .home-hero p { font-size: 15px; color: var(--text-muted); line-height: 1.7; max-width: 560px; margin-bottom: 24px; }
+    .home-stats { display: flex; gap: 32px; }
+    .hstat { text-align: center; }
+    .hstat-val { font-size: 28px; font-weight: 800; color: var(--accent); }
+    .hstat-label { font-size: 12px; color: var(--text-muted); }
+    .endpoint-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px; }
+    .ep-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 18px 20px; cursor: pointer; transition: all .15s; text-align: left; width: 100%; }
+    .ep-card:hover { border-color: var(--accent); box-shadow: 0 4px 16px rgba(99,102,241,.1); transform: translateY(-1px); }
+    .ep-card-path { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 500; color: var(--accent); margin-bottom: 6px; }
+    .ep-card-desc { font-size: 13px; color: var(--text-muted); line-height: 1.4; }
+
+    footer { text-align: center; padding: 24px; font-size: 13px; color: var(--text-light); border-top: 1px solid var(--border); }
+
+    @media (max-width: 900px) {
+      .app { grid-template-columns: 1fr; padding: 16px; }
+      .sidebar { position: static; }
+      .nav { flex-direction: row; flex-wrap: wrap; }
+      .mkt-cases { grid-template-columns: 1fr; }
+      .row { grid-template-columns: 1fr; }
+      .home-stats { gap: 20px; }
+      .endpoint-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="header-inner">
+    <a class="logo" href="#">
+      <div class="logo-icon">🔍</div>
+      <span class="logo-text">SEO & GEO API</span>
+      <span class="logo-badge">v1.1.0</span>
+    </a>
+    <div class="status-dot">
+      <div class="dot" id="statusDot"></div>
+      <span id="statusText">Comprobando...</span>
+    </div>
+  </div>
+</header>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="sidebar-label">Endpoints</div>
+    <nav class="nav">
+      <button class="nav-item active" onclick="showSection('home',this)">🏠 &nbsp;Inicio</button>
+      <button class="nav-item" onclick="showSection('health',this)"><span class="nav-badge get">GET</span> /health</button>
+      <button class="nav-item" onclick="showSection('seo',this)"><span class="nav-badge post">POST</span> /analyze/seo</button>
+      <button class="nav-item" onclick="showSection('geo',this)"><span class="nav-badge post">POST</span> /analyze/geo</button>
+      <button class="nav-item" onclick="showSection('full',this)"><span class="nav-badge post">POST</span> /analyze/full</button>
+      <button class="nav-item" onclick="showSection('url',this)"><span class="nav-badge post">POST</span> /analyze/url</button>
+      <button class="nav-item" onclick="showSection('keywords',this)"><span class="nav-badge post">POST</span> /keywords</button>
+      <button class="nav-item" onclick="showSection('schema',this)"><span class="nav-badge post">POST</span> /schema</button>
+    </nav>
+    <div class="base-url-box">
+      <div class="base-url-label">Base URL</div>
+      <input class="base-url-input" id="baseUrl" type="text" value="https://seogeo-five.vercel.app" spellcheck="false" />
+    </div>
+  </aside>
+
+  <main class="panel">
+
+    <!-- HOME -->
+    <section class="section active" id="section-home">
+      <div class="home-hero">
+        <h1>SEO & GEO API Playground</h1>
+        <p>Prueba en tiempo real la API que optimiza tu contenido para Google <strong>y</strong> para la nueva generación de buscadores con IA: ChatGPT, Gemini y Perplexity.</p>
+        <div class="home-stats">
+          <div class="hstat"><div class="hstat-val">7</div><div class="hstat-label">Endpoints</div></div>
+          <div class="hstat"><div class="hstat-val">AI</div><div class="hstat-label">Powered</div></div>
+          <div class="hstat"><div class="hstat-val">GEO</div><div class="hstat-label">Ready</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-body">
+          <div style="font-size:13px;font-weight:600;margin-bottom:14px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.06em">Explorar endpoints</div>
+          <div class="endpoint-grid">
+            <button class="ep-card" onclick="showSection('seo', document.querySelectorAll('.nav-item')[2])">
+              <div class="ep-card-path">POST /analyze/seo</div>
+              <div class="ep-card-desc">Title, meta, slug, keywords LSI y score SEO completo para cualquier texto.</div>
+            </button>
+            <button class="ep-card" onclick="showSection('geo', document.querySelectorAll('.nav-item')[3])">
+              <div class="ep-card-path">POST /analyze/geo</div>
+              <div class="ep-card-desc">Optimiza tu contenido para aparecer en respuestas de ChatGPT, Gemini y Perplexity.</div>
+            </button>
+            <button class="ep-card" onclick="showSection('full', document.querySelectorAll('.nav-item')[4])">
+              <div class="ep-card-path">POST /analyze/full</div>
+              <div class="ep-card-desc">El análisis definitivo: SEO clásico + visibilidad en IA en una sola llamada.</div>
+            </button>
+            <button class="ep-card" onclick="showSection('url', document.querySelectorAll('.nav-item')[5])">
+              <div class="ep-card-path">POST /analyze/url</div>
+              <div class="ep-card-desc">Pasa una URL y obtenemos el análisis completo sin que copies ni pegues nada.</div>
+            </button>
+            <button class="ep-card" onclick="showSection('keywords', document.querySelectorAll('.nav-item')[6])">
+              <div class="ep-card-path">POST /keywords</div>
+              <div class="ep-card-desc">Keyword research con intención de búsqueda y potencial GEO por término.</div>
+            </button>
+            <button class="ep-card" onclick="showSection('schema', document.querySelectorAll('.nav-item')[7])">
+              <div class="ep-card-path">POST /schema</div>
+              <div class="ep-card-desc">Genera el JSON-LD que Google necesita para mostrarte en resultados enriquecidos.</div>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- HEALTH -->
+    <section class="section" id="section-health">
+      <div class="mkt-header">
+        <div class="mkt-hero">
+          <div class="mkt-eyebrow">Estado del sistema</div>
+          <div class="mkt-title">Health Check — ¿Está la API activa?</div>
+          <div class="mkt-desc">Endpoint público sin autenticación que devuelve el estado actual de la API y su versión. Ideal para integrarlo en tus dashboards de monitorización, alertas de Slack o pipelines de CI/CD para asegurarte de que el servicio responde antes de lanzar llamadas.</div>
+        </div>
+        <div class="mkt-cases">
+          <div class="case-card"><div class="case-icon">🖥️</div><div class="case-title">Monitorización continua</div><div class="case-desc">Configura un ping cada 5 min desde UptimeRobot o Better Uptime para detectar caídas al instante.</div></div>
+          <div class="case-card"><div class="case-icon">🔁</div><div class="case-title">CI/CD pipelines</div><div class="case-desc">Incluye el health check como paso previo en tus deploys: si la API no responde, el pipeline falla.</div></div>
+          <div class="case-card"><div class="case-icon">📱</div><div class="case-title">Apps y extensiones</div><div class="case-desc">Muestra un indicador de estado en tu Chrome Extension o app para que el usuario sepa si el servicio está disponible.</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="method-badge GET">GET</span><span class="endpoint-path">/health</span></div>
+        <div class="card-body"><p style="font-size:13px;color:var(--text-muted)">Sin parámetros. Pulsa <strong>Enviar</strong> para verificar el estado.</p></div>
+        <div class="card-footer">
+          <div class="loading-row" id="loading-health"><div class="spinner"></div> Comprobando…</div>
+          <div></div>
+          <button class="btn btn-primary" onclick="callHealth()">Enviar →</button>
+        </div>
+      </div>
+      <div class="response-area" id="res-health"></div>
+    </section>
+
+    <!-- SEO -->
+    <section class="section" id="section-seo">
+      <div class="mkt-header">
+        <div class="mkt-hero">
+          <div class="mkt-eyebrow">SEO clásico</div>
+          <div class="mkt-title">Análisis SEO completo — Domina Google con cada artículo</div>
+          <div class="mkt-desc">Introduce el texto de cualquier página o artículo y obtén al instante el title tag perfecto, la meta description optimizada, el slug limpio, hasta 10 keywords LSI, las etiquetas Open Graph para redes sociales, el marcado schema.org, un score de 0 a 100 y un listado de mejoras concretas. Lo que un SEO senior tarda horas en hacer, la API lo entrega en segundos.</div>
+        </div>
+        <div class="mkt-cases">
+          <div class="case-card"><div class="case-icon">✍️</div><div class="case-title">Agencias de contenido</div><div class="case-desc">Optimiza automáticamente los 50 artículos semanales de tus clientes sin intervención manual.</div></div>
+          <div class="case-card"><div class="case-icon">🛒</div><div class="case-title">Ecommerce</div><div class="case-desc">Genera metadatos únicos para miles de fichas de producto y escala tu SEO on-page sin esfuerzo.</div></div>
+          <div class="case-card"><div class="case-icon">🧩</div><div class="case-title">Plugins CMS</div><div class="case-desc">Integra la API en tu plugin de WordPress o Webflow para ofrecer sugerencias SEO en tiempo real al editor.</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="method-badge POST">POST</span><span class="endpoint-path">/analyze/seo</span></div>
+        <div class="card-body">
+          <div class="field"><label>Contenido <span class="hint">— texto del artículo o página</span></label><textarea id="seo-text" placeholder="Pega aquí el contenido de tu página…">Las zapatillas minimalistas de running están ganando popularidad entre los corredores que buscan mayor conexión con el suelo y reducción de lesiones. Estas zapatillas con suela fina favorecen una pisada natural y fortalecen la musculatura del pie, aunque requieren una adaptación progresiva para evitar sobrecargas.</textarea></div>
+          <div class="row">
+            <div class="field"><label>Idioma</label><select id="seo-lang"><option value="es">Español</option><option value="en">English</option><option value="fr">Français</option><option value="de">Deutsch</option></select></div>
+            <div class="field"><label>Sector <span class="hint">opcional</span></label><input type="text" id="seo-sector" placeholder="ej: ecommerce, salud, tecnología…" /></div>
+          </div>
+        </div>
+        <div class="card-footer">
+          <div class="loading-row" id="loading-seo"><div class="spinner"></div> Analizando con Gemini…</div>
+          <div></div>
+          <button class="btn btn-primary" onclick="callSeo()">Enviar →</button>
+        </div>
+      </div>
+      <div class="response-area" id="res-seo"></div>
+    </section>
+
+    <!-- GEO -->
+    <section class="section" id="section-geo">
+      <div class="mkt-header">
+        <div class="mkt-hero">
+          <div class="mkt-eyebrow">Generative Engine Optimization</div>
+          <div class="mkt-title">Análisis GEO — Aparece en las respuestas de la IA</div>
+          <div class="mkt-desc">El 40% de las búsquedas ya muestran una respuesta de IA antes que los resultados orgánicos. El GEO Score mide cuánto de probable es que tu contenido sea citado por ChatGPT, Gemini o Perplexity. Recibirás el snippet perfecto para que la IA lo extraiga, las entidades que faltan para ganar autoridad y una hoja de ruta de mejoras concretas.</div>
+        </div>
+        <div class="mkt-cases">
+          <div class="case-card"><div class="case-icon">🤖</div><div class="case-title">Marcas que quieren visibilidad IA</div><div class="case-desc">Descubre si tu web aparece cuando un usuario le pregunta a ChatGPT por tu sector o producto.</div></div>
+          <div class="case-card"><div class="case-icon">📰</div><div class="case-title">Medios y publishers</div><div class="case-desc">Adapta tus artículos para ser citados como fuente en las respuestas de Perplexity y aumenta el tráfico de referencia.</div></div>
+          <div class="case-card"><div class="case-icon">🏢</div><div class="case-title">Consultoras SEO</div><div class="case-desc">Ofrece auditorías GEO como servicio premium diferencial que ninguna herramienta tradicional incluye.</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="method-badge POST">POST</span><span class="endpoint-path">/analyze/geo</span></div>
+        <div class="card-body">
+          <div class="field"><label>Contenido</label><textarea id="geo-text" placeholder="Pega aquí el contenido…">Las zapatillas minimalistas de running están ganando popularidad entre los corredores que buscan mayor conexión con el suelo y reducción de lesiones. Estas zapatillas con suela fina favorecen una pisada natural y fortalecen la musculatura del pie.</textarea></div>
+          <div class="row">
+            <div class="field"><label>Idioma</label><select id="geo-lang"><option value="es">Español</option><option value="en">English</option></select></div>
+            <div class="field"><label>Sector <span class="hint">opcional</span></label><input type="text" id="geo-sector" placeholder="ej: deportes, salud…" /></div>
+          </div>
+        </div>
+        <div class="card-footer">
+          <div class="loading-row" id="loading-geo"><div class="spinner"></div> Analizando con Gemini…</div>
+          <div></div>
+          <button class="btn btn-primary" onclick="callGeo()">Enviar →</button>
+        </div>
+      </div>
+      <div class="response-area" id="res-geo"></div>
+    </section>
+
+    <!-- FULL -->
+    <section class="section" id="section-full">
+      <div class="mkt-header">
+        <div class="mkt-hero">
+          <div class="mkt-eyebrow">SEO + GEO combinados</div>
+          <div class="mkt-title">Análisis Full — La auditoría definitiva en una sola llamada</div>
+          <div class="mkt-desc">Obtén el análisis SEO clásico y el análisis GEO en paralelo con una única petición. Sin duplicar costes. Diseñado para flujos de publicación donde necesitas optimizar para Google Y para la IA al mismo tiempo: el futuro del SEO ya está aquí, y este endpoint te lo da todo junto.</div>
+        </div>
+        <div class="mkt-cases">
+          <div class="case-card"><div class="case-icon">⚡</div><div class="case-title">Publicación acelerada</div><div class="case-desc">Integra en tu CMS: cuando el editor pulsa "Publicar", dispara este endpoint y enriquece el contenido automáticamente.</div></div>
+          <div class="case-card"><div class="case-icon">📊</div><div class="case-title">Auditorías masivas</div><div class="case-desc">Analiza cientos de URLs en batch con una sola integración y obtén el doble de datos por llamada.</div></div>
+          <div class="case-card"><div class="case-icon">🚀</div><div class="case-title">SaaS de contenido</div><div class="case-desc">El endpoint ideal para construir tu propia herramienta SaaS de optimización de contenido con IA.</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="method-badge POST">POST</span><span class="endpoint-path">/analyze/full</span></div>
+        <div class="card-body">
+          <div class="field"><label>Contenido</label><textarea id="full-text" placeholder="Pega aquí el contenido…">Las zapatillas minimalistas de running están ganando popularidad entre los corredores que buscan mayor conexión con el suelo y reducción de lesiones. Estas zapatillas con suela fina favorecen una pisada natural y fortalecen la musculatura del pie, aunque requieren una adaptación progresiva para evitar sobrecargas.</textarea></div>
+          <div class="row">
+            <div class="field"><label>Idioma</label><select id="full-lang"><option value="es">Español</option><option value="en">English</option></select></div>
+            <div class="field"><label>Sector <span class="hint">opcional</span></label><input type="text" id="full-sector" placeholder="ej: deportes, salud…" /></div>
+          </div>
+        </div>
+        <div class="card-footer">
+          <div class="loading-row" id="loading-full"><div class="spinner"></div> Analizando SEO + GEO en paralelo…</div>
+          <div></div>
+          <button class="btn btn-primary" onclick="callFull()">Enviar →</button>
+        </div>
+      </div>
+      <div class="response-area" id="res-full"></div>
+    </section>
+
+    <!-- URL -->
+    <section class="section" id="section-url">
+      <div class="mkt-header">
+        <div class="mkt-hero">
+          <div class="mkt-eyebrow">Scraping + Análisis automático</div>
+          <div class="mkt-title">Análisis por URL — Audita cualquier web sin copiar nada</div>
+          <div class="mkt-desc">Pasa una URL y la API hace todo el trabajo: descarga el contenido, extrae el texto relevante, descarta menús y footers, y lanza el análisis SEO + GEO completo. Perfecto para auditar la competencia, analizar las páginas de tus clientes o construir herramientas de monitorización automática.</div>
+        </div>
+        <div class="mkt-cases">
+          <div class="case-card"><div class="case-icon">🔎</div><div class="case-title">Análisis de competidores</div><div class="case-desc">Introduce la URL de tu competidor y obtén al instante sus puntos débiles de SEO y GEO que puedes explotar.</div></div>
+          <div class="case-card"><div class="case-icon">🗓️</div><div class="case-title">Monitorización periódica</div><div class="case-desc">Programa análisis semanales de tus páginas clave para detectar caídas de score antes de que afecten al ranking.</div></div>
+          <div class="case-card"><div class="case-icon">🤝</div><div class="case-title">Onboarding de clientes</div><div class="case-desc">En la primera reunión, analiza la web del cliente en tiempo real y entrega un informe instantáneo que impresiona.</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="method-badge POST">POST</span><span class="endpoint-path">/analyze/url</span></div>
+        <div class="card-body">
+          <div class="field"><label>URL</label><input type="text" id="url-url" value="https://es.wikipedia.org/wiki/Running" placeholder="https://ejemplo.com/tu-pagina" /></div>
+          <div class="row">
+            <div class="field"><label>Idioma</label><select id="url-lang"><option value="es">Español</option><option value="en">English</option></select></div>
+            <div class="field"><label>Sector <span class="hint">opcional</span></label><input type="text" id="url-sector" placeholder="ej: deportes…" /></div>
+          </div>
+        </div>
+        <div class="card-footer">
+          <div class="loading-row" id="loading-url"><div class="spinner"></div> Scrapeando y analizando…</div>
+          <div></div>
+          <button class="btn btn-primary" onclick="callUrl()">Enviar →</button>
+        </div>
+      </div>
+      <div class="response-area" id="res-url"></div>
+    </section>
+
+    <!-- KEYWORDS -->
+    <section class="section" id="section-keywords">
+      <div class="mkt-header">
+        <div class="mkt-hero">
+          <div class="mkt-eyebrow">Keyword Research con IA</div>
+          <div class="mkt-title">Keywords — Encuentra los términos que te darán tráfico y visibilidad en IA</div>
+          <div class="mkt-desc">Introduce un tema o keyword semilla y obtén un listado de keywords con su intención de búsqueda (informacional, transaccional, comercial, navegacional), dificultad estimada, potencial GEO y el ángulo de contenido recomendado para cada una. Además, identifica qué keywords tienen más potencial de aparecer en respuestas de IA que en resultados de Google tradicional.</div>
+        </div>
+        <div class="mkt-cases">
+          <div class="case-card"><div class="case-icon">📅</div><div class="case-title">Calendarios editoriales</div><div class="case-desc">Planifica los próximos 3 meses de contenido en minutos identificando las keywords más rentables por intención.</div></div>
+          <div class="case-card"><div class="case-icon">🎯</div><div class="case-title">Estrategia de nicho</div><div class="case-desc">Encuentra keywords de baja dificultad y alto potencial GEO donde posicionarte rápido y ser citado por la IA.</div></div>
+          <div class="case-card"><div class="case-icon">🏪</div><div class="case-title">Marketplaces de contenido</div><div class="case-desc">Ofrece a tus clientes un informe de keyword research automatizado como parte de tu propuesta de valor.</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="method-badge POST">POST</span><span class="endpoint-path">/keywords</span></div>
+        <div class="card-body">
+          <div class="field"><label>Tema o keyword semilla</label><input type="text" id="kw-text" value="zapatillas minimalistas running" placeholder="ej: marketing digital, inteligencia artificial…" /></div>
+          <div class="row">
+            <div class="field"><label>Idioma</label><select id="kw-lang"><option value="es">Español</option><option value="en">English</option></select></div>
+            <div class="field"><label>Sector <span class="hint">opcional</span></label><input type="text" id="kw-sector" placeholder="ej: deportes…" /></div>
+          </div>
+        </div>
+        <div class="card-footer">
+          <div class="loading-row" id="loading-keywords"><div class="spinner"></div> Generando keywords…</div>
+          <div></div>
+          <button class="btn btn-primary" onclick="callKeywords()">Enviar →</button>
+        </div>
+      </div>
+      <div class="response-area" id="res-keywords"></div>
+    </section>
+
+    <!-- SCHEMA -->
+    <section class="section" id="section-schema">
+      <div class="mkt-header">
+        <div class="mkt-hero">
+          <div class="mkt-eyebrow">Structured Data / Rich Results</div>
+          <div class="mkt-title">Schema Generator — El código que Google necesita para destacarte</div>
+          <div class="mkt-desc">Los resultados enriquecidos (rich snippets) obtienen hasta un 30% más de clics que los resultados normales. Este endpoint genera el JSON-LD correcto para tu tipo de contenido —artículo, producto, FAQ, tutorial, negocio local— listo para pegar en el &lt;head&gt; de tu página. Sin errores de sintaxis, sin validaciones manuales.</div>
+        </div>
+        <div class="mkt-cases">
+          <div class="case-card"><div class="case-icon">⭐</div><div class="case-title">Rich Snippets en Google</div><div class="case-desc">Añade estrellas de valoración, preguntas frecuentes o pasos de receta directamente en los resultados de búsqueda.</div></div>
+          <div class="case-card"><div class="case-icon">🏗️</div><div class="case-title">Generación masiva</div><div class="case-desc">Genera schema.org para miles de fichas de producto o artículos en batch sin intervención manual.</div></div>
+          <div class="case-card"><div class="case-icon">🔌</div><div class="case-title">Integración CMS</div><div class="case-desc">Inyecta el JSON-LD automáticamente en el head de cada página publicada con un simple webhook.</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="method-badge POST">POST</span><span class="endpoint-path">/schema</span></div>
+        <div class="card-body">
+          <div class="field"><label>Contenido</label><textarea id="schema-text" placeholder="Pega aquí el contenido…">Las zapatillas minimalistas de running están ganando popularidad entre los corredores que buscan mayor conexión con el suelo y reducción de lesiones.</textarea></div>
+          <div class="row">
+            <div class="field"><label>Tipo de schema</label><select id="schema-type"><option value="Article">Article</option><option value="Product">Product</option><option value="FAQPage">FAQPage</option><option value="HowTo">HowTo</option><option value="LocalBusiness">LocalBusiness</option><option value="Organization">Organization</option><option value="WebPage">WebPage</option></select></div>
+            <div class="field"><label>Idioma</label><select id="schema-lang"><option value="es">Español</option><option value="en">English</option></select></div>
+          </div>
+        </div>
+        <div class="card-footer">
+          <div class="loading-row" id="loading-schema"><div class="spinner"></div> Generando schema.org…</div>
+          <div></div>
+          <button class="btn btn-primary" onclick="callSchema()">Enviar →</button>
+        </div>
+      </div>
+      <div class="response-area" id="res-schema"></div>
+    </section>
+
+  </main>
+</div>
+
+<footer>SEO & GEO API Playground · Powered by Gemini · <a href="https://github.com/denismartinb/seogeo" style="color:var(--accent);text-decoration:none">GitHub</a></footer>
+
+<script>
+const $ = id => document.getElementById(id);
+const API_KEY = 'ba115a82155671c02adfb1e9d796c2c8372118855032ece26e496119cb5370b3';
+const baseUrl = () => $('baseUrl').value.replace(/\/$/, '');
+
+function showSection(name, btn) {
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  $(`section-${name}`).classList.add('active');
+  if (btn) btn.classList.add('active');
+}
+function setLoading(id, on) { $(`loading-${id}`).classList.toggle('visible', on); }
+
+function scoreClass(n) { return n >= 70 ? 'high' : n >= 40 ? 'mid' : 'low'; }
+
+function scorePill(val, label, hint) {
+  const n = Math.round(typeof val === 'number' ? val : parseFloat(val));
+  const cls = scoreClass(n);
+  return `<div class="score-pill">
+    <div class="score-num ${cls}">${n}</div>
+    <div class="score-label">${label}</div>
+    ${hint ? `<div class="score-hint">${hint}</div>` : ''}
+    <div class="score-bar-wrap"><div class="score-bar ${cls}" style="width:${n}%"></div></div>
+  </div>`;
+}
+
+function tags(arr, cls='accent') {
+  if (!arr || !arr.length) return '<span style="color:var(--text-light);font-size:12px">—</span>';
+  return `<div class="tags">${arr.map(t => `<span class="tag ${cls}">${t}</span>`).join('')}</div>`;
+}
+
+function listItems(arr, icon='✅', cls='') {
+  if (!arr || !arr.length) return '<span style="color:var(--text-light);font-size:12px">—</span>';
+  return `<div class="vr-list">${arr.map(i => `<div class="vr-list-item ${cls}"><span class="li-icon">${icon}</span><span>${i}</span></div>`).join('')}</div>`;
+}
+
+function fieldRow(label, value, caption='', extra='') {
+  return `<div class="vr-field">
+    <div class="vr-field-label">${label}</div>
+    <div class="vr-field-value ${extra}">${value || '—'}</div>
+    ${caption ? `<div class="vr-field-caption">${caption}</div>` : ''}
+  </div>`;
+}
+
+function section(icon, title, content) {
+  return `<div class="vr-section">
+    <div class="vr-section-title"><span>${icon}</span>${title}</div>
+    <div class="vr-body">${content}</div>
+  </div>`;
+}
+
+function syntaxHighlight(json) {
+  if (typeof json !== 'string') json = JSON.stringify(json, null, 2);
+  return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, m => {
+    let c = 'json-num';
+    if (/^"/.test(m)) c = /:$/.test(m) ? 'json-key' : 'json-str';
+    else if (/true|false/.test(m)) c = 'json-bool';
+    else if (/null/.test(m)) c = 'json-null';
+    return `<span class="${c}">${m}</span>`;
+  });
+}
+
+function copyCode(btn) {
+  navigator.clipboard.writeText(btn.nextElementSibling.textContent).then(() => { btn.textContent = '✓ Copiado'; setTimeout(() => btn.textContent = 'Copiar', 2000); });
+}
+
+function jsonBlock(data) {
+  return `<div class="code-block"><button class="copy-btn" onclick="copyCode(this)">Copiar</button><pre>${syntaxHighlight(data)}</pre></div>`;
+}
+
+// ── Field card builders ─────────────────────────────────────────────────────
+
+function fcard(icon, label, description, valueHtml) {
+  return `<div class="vr-section" style="margin:0">
+    <div class="vr-section-title"><span>${icon}</span>${label}</div>
+    <div class="vr-body" style="gap:6px">
+      <div class="vr-field-caption" style="margin-bottom:4px">${description}</div>
+      <div>${valueHtml}</div>
+    </div>
+  </div>`;
+}
+
+function textCard(icon, label, desc, value, mono=false) {
+  return fcard(icon, label, desc, `<div class="vr-field-value ${mono?'code':''}">${value||'—'}</div>`);
+}
+
+// ── SEO ─────────────────────────────────────────────────────────────────────
+function renderVisualSeo(d) {
+  const score = d.seo_score ?? 0;
+  const scls = scoreClass(score);
+  const readCls = {'avanzado':'avanzado','medio':'medio','básico':'basico','basico':'basico'}[d.readability_score] || 'basico';
+  return [
+    // seo_score
+    `<div class="vr-section">
+      <div class="vr-section-title"><span>📊</span>seo_score — Puntuación SEO global</div>
+      <div class="vr-body">
+        <div class="vr-field-caption">Puntuación de 0 a 100 que resume la optimización SEO on-page del contenido. Por debajo de 50 hay trabajo urgente; por encima de 75, estás en zona de ranking competitivo.</div>
+        <div class="score-pill" style="max-width:180px">
+          <div class="score-num ${scls}">${score}</div>
+          <div class="score-label">SEO Score</div>
+          <div class="score-bar-wrap"><div class="score-bar ${scls}" style="width:${score}%"></div></div>
+        </div>
+      </div>
+    </div>`,
+
+    // readability_score
+    fcard('📖', 'readability_score — Nivel de legibilidad', 'Complejidad del texto para el lector medio. "básico" es fácil de consumir; "avanzado" puede alejar a audiencias amplias.', `<span class="badge ${readCls}">${d.readability_score||'—'}</span>`),
+
+    // title
+    textCard('🏷️', 'title — Title Tag', 'El título que Google muestra en los resultados de búsqueda. Máximo recomendado: 60 caracteres. Incluye la keyword principal lo antes posible.', d.title),
+
+    // meta_description
+    textCard('📋', 'meta_description — Meta Description', 'Texto que aparece bajo el title en Google. No afecta directamente al ranking pero sí al CTR. Máximo: 160 caracteres. Debe ser persuasivo e incluir la keyword.', d.meta_description),
+
+    // slug
+    textCard('🔗', 'slug — URL Slug', 'Ruta limpia y optimizada para la URL de la página. Sin tildes, sin mayúsculas, palabras separadas por guiones. Es la URL que debería tener tu página.', `/${d.slug||''}`, true),
+
+    // focus_keyword
+    fcard('🎯', 'focus_keyword — Keyword Principal', 'El término central en torno al que debe girar todo el contenido. Debe aparecer en el title, la H1, los primeros 100 caracteres del texto y en la URL.', `<span class="badge alta">${d.focus_keyword||'—'}</span>`),
+
+    // secondary_keywords
+    fcard('🔑', 'secondary_keywords — Keywords LSI (semánticas)', 'Términos relacionados semánticamente que refuerzan la relevancia del contenido para Google. Incorpóralas de forma natural en subtítulos y párrafos.', `<div class="tags">${(d.secondary_keywords||[]).map(k=>`<span class="tag accent">${k}</span>`).join('')||'—'}</div>`),
+
+    // og_title + og_description → preview
+    `<div class="vr-section">
+      <div class="vr-section-title"><span>🌐</span>og_title / og_description — Open Graph (redes sociales)</div>
+      <div class="vr-body">
+        <div class="vr-field-caption">Controlan cómo se ve tu contenido cuando alguien lo comparte en LinkedIn, Twitter, WhatsApp o Slack. Un buen OG puede doblar el CTR en redes sociales.</div>
+        <div class="og-preview">
+          <div class="og-preview-bar"></div>
+          <div class="og-preview-body">
+            <div class="og-preview-domain">tuweb.com</div>
+            <div class="og-preview-title">${d.og_title||''}</div>
+            <div class="og-preview-desc">${d.og_description||''}</div>
+          </div>
+        </div>
+      </div>
+    </div>`,
+
+    // schema_article
+    d.schema_article ? `<div class="vr-section">
+      <div class="vr-section-title"><span>🗂️</span>schema_article — Marcado estructurado Article</div>
+      <div class="vr-body">
+        <div class="vr-field-caption">JSON-LD de tipo Article que ayuda a Google a entender que es contenido editorial. Pégalo en el &lt;head&gt; de tu página para optar a resultados enriquecidos.</div>
+        <div class="code-block"><button class="copy-btn" onclick="copyCode(this)">Copiar</button><pre>${syntaxHighlight(d.schema_article)}</pre></div>
+      </div>
+    </div>` : '',
+
+    // schema_faq
+    d.schema_faq ? `<div class="vr-section">
+      <div class="vr-section-title"><span>❓</span>schema_faq — FAQ Schema</div>
+      <div class="vr-body">
+        <div class="vr-field-caption">Marcado de preguntas frecuentes. Google puede mostrarlo como acordeón desplegable directamente en los resultados, aumentando hasta un 30% el espacio visual.</div>
+        <div class="code-block"><button class="copy-btn" onclick="copyCode(this)">Copiar</button><pre>${syntaxHighlight(d.schema_faq)}</pre></div>
+      </div>
+    </div>` : '',
+
+    // issues
+    d.issues?.length ? `<div class="vr-section">
+      <div class="vr-section-title"><span>⚠️</span>issues — Problemas SEO detectados</div>
+      <div class="vr-body">
+        <div class="vr-field-caption">Aspectos que están penalizando tu puntuación SEO. Ordénalos por impacto y corrígelos uno a uno.</div>
+        ${listItems(d.issues, '⚠️')}
+      </div>
+    </div>` : '',
+
+    // suggestions
+    d.suggestions?.length ? `<div class="vr-section">
+      <div class="vr-section-title"><span>💡</span>suggestions — Mejoras recomendadas</div>
+      <div class="vr-body">
+        <div class="vr-field-caption">Acciones concretas para subir tu SEO Score. Cada mejora implementada puede suponer entre 2 y 10 puntos adicionales.</div>
+        ${listItems(d.suggestions, '✅')}
+      </div>
+    </div>` : '',
+  ].join('');
+}
+
+// ── GEO ─────────────────────────────────────────────────────────────────────
+function renderVisualGeo(d) {
+  const score = d.geo_score ?? 0;
+  const scls = scoreClass(score);
+  const citCls = {alta:'alta',media:'media',baja:'baja'}[d.citation_likelihood] || 'baja';
+  return [
+    // geo_score
+    `<div class="vr-section">
+      <div class="vr-section-title"><span>🤖</span>geo_score — GEO Score</div>
+      <div class="vr-body">
+        <div class="vr-field-caption">Puntuación 0-100 de la probabilidad de que la IA (ChatGPT, Gemini, Perplexity) cite este contenido como fuente en sus respuestas. Por encima de 70 hay alta probabilidad de aparición.</div>
+        <div class="score-pill" style="max-width:180px">
+          <div class="score-num ${scls}">${score}</div>
+          <div class="score-label">GEO Score</div>
+          <div class="score-bar-wrap"><div class="score-bar ${scls}" style="width:${score}%"></div></div>
+        </div>
+      </div>
+    </div>`,
+
+    // citation_likelihood
+    fcard('📡', 'citation_likelihood — Probabilidad de citación', 'Estimación cualitativa de si un LLM citará este contenido: baja / media / alta. Combina la densidad de entidades, la estructura factual y la claridad del snippet.', `<span class="badge ${citCls}">● ${d.citation_likelihood||'—'}</span>`),
+
+    // ai_snippet
+    `<div class="vr-section">
+      <div class="vr-section-title"><span>✨</span>ai_snippet — Snippet optimizado para IA</div>
+      <div class="vr-body">
+        <div class="vr-field-caption">Fragmento diseñado específicamente para que ChatGPT, Gemini o Perplexity lo extraigan y muestren como respuesta directa. Menos de 280 caracteres, factual y sin ambigüedades. Úsalo como primera frase de tu artículo.</div>
+        <div class="snippet-box"><div class="snippet-box-inner">${d.ai_snippet||'—'}</div></div>
+      </div>
+    </div>`,
+
+    // answer_ready_summary
+    textCard('📝', 'answer_ready_summary — Resumen "answer-ready"', 'Versión estructurada y factual del contenido, diseñada para ser citada textualmente por un LLM. Más larga que el snippet, ideal para insertarla en el meta description extendido o en la introducción del artículo.', d.answer_ready_summary),
+
+    // entity_coverage
+    fcard('🏷️', 'entity_coverage — Entidades detectadas', 'Personas, marcas, lugares y conceptos que la IA identifica en el contenido. Cuantas más entidades reconocibles haya, más "creíble" resulta el texto para los LLMs, que ponderan el grafo de conocimiento.', `<div class="tags">${(d.entity_coverage||[]).map(e=>`<span class="tag success">${e}</span>`).join('')||'—'}</div>`),
+
+    // missing_entities
+    fcard('🔍', 'missing_entities — Entidades que faltan', 'Entidades relevantes para el tema que no aparecen en el contenido. Incorporarlas aumenta la autoridad semántica y la probabilidad de citación en IA.', `<div class="tags">${(d.missing_entities||[]).map(e=>`<span class="tag warning">${e}</span>`).join('')||'—'}</div>`),
+
+    // llm_query_matches
+    d.llm_query_matches?.length ? `<div class="vr-section">
+      <div class="vr-section-title"><span>💬</span>llm_query_matches — Preguntas que la IA respondería con este contenido</div>
+      <div class="vr-body">
+        <div class="vr-field-caption">Queries reales de usuarios donde tu contenido podría aparecer como respuesta generada en ChatGPT o Perplexity. Son oportunidades de visibilidad en la búsqueda con IA.</div>
+        ${listItems(d.llm_query_matches, '❓')}
+      </div>
+    </div>` : '',
+
+    // structured_data_recommended
+    d.structured_data_recommended?.length ? fcard('🗂️', 'structured_data_recommended — Schema.org recomendado', 'Tipos de marcado estructurado que aumentarían la comprensión del contenido por los LLMs. Cada tipo de schema añade contexto semántico que las IAs consumen directamente.', `<div class="tags">${d.structured_data_recommended.map(s=>`<span class="tag purple">${s}</span>`).join('')}</div>`) : '',
+
+    // ai_friendliness_issues
+    d.ai_friendliness_issues?.length ? `<div class="vr-section">
+      <div class="vr-section-title"><span>⚠️</span>ai_friendliness_issues — Problemas de visibilidad en IA</div>
+      <div class="vr-body">
+        <div class="vr-field-caption">Factores concretos que reducen la probabilidad de que la IA cite o use este contenido. Corrígelos para subir el GEO Score.</div>
+        ${listItems(d.ai_friendliness_issues, '⚠️')}
+      </div>
+    </div>` : '',
+
+    // geo_suggestions
+    d.geo_suggestions?.length ? `<div class="vr-section">
+      <div class="vr-section-title"><span>🚀</span>geo_suggestions — Acciones para mejorar el GEO Score</div>
+      <div class="vr-body">
+        <div class="vr-field-caption">Hoja de ruta priorizada para optimizar el contenido y aparecer en las respuestas generadas por IA. Cada acción puede suponer entre 5 y 15 puntos de GEO Score.</div>
+        ${listItems(d.geo_suggestions, '🚀')}
+      </div>
+    </div>` : '',
+  ].join('');
+}
+
+// ── Keywords ─────────────────────────────────────────────────────────────────
+function renderVisualKeywords(d) {
+  const rows = (d.keywords||[]).map(k=>`<tr>
+    <td><span class="kw-keyword">${k.keyword}</span></td>
+    <td><span class="intent-badge intent-${k.intent}">${k.intent}</span></td>
+    <td><span class="badge ${k.difficulty==='baja'?'alta':k.difficulty==='media'?'media':'baja'}">${k.difficulty}</span></td>
+    <td><span class="badge ${k.geo_potential==='alto'?'alta':k.geo_potential==='medio'?'media':'baja'}">${k.geo_potential}</span></td>
+    <td style="color:var(--text-muted);font-size:12px">${k.content_angle}</td>
+  </tr>`).join('');
+  return [
+    // seed + language
+    `<div class="vr-section">
+      <div class="vr-section-title"><span>🌱</span>seed_keyword / language</div>
+      <div class="vr-body" style="flex-direction:row;flex-wrap:wrap;gap:12px">
+        <div><div class="vr-field-caption">Keyword semilla analizada</div><span class="badge alta" style="margin-top:4px;display:inline-flex">${d.seed_keyword||'—'}</span></div>
+        <div><div class="vr-field-caption">Idioma</div><span class="badge medio" style="margin-top:4px;display:inline-flex">${d.language||'—'}</span></div>
+      </div>
+    </div>`,
+
+    // keywords table
+    `<div class="vr-section">
+      <div class="vr-section-title"><span>📋</span>keywords — Lista de keywords con análisis completo</div>
+      <div class="vr-body">
+        <div class="vr-field-caption">Cada keyword incluye su intención de búsqueda (qué quiere el usuario), la dificultad estimada para posicionarse y el potencial GEO (si la IA la usa para responder preguntas). El ángulo de contenido indica cómo enfocarlo.</div>
+        <div style="overflow-x:auto"><table class="kw-table">
+          <thead><tr><th>Keyword</th><th>Intención</th><th>Dificultad</th><th>Potencial GEO</th><th>Ángulo de contenido</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table></div>
+      </div>
+    </div>`,
+
+    // geo_first_keywords
+    d.geo_first_keywords?.length ? `<div class="vr-section">
+      <div class="vr-section-title"><span>🤖</span>geo_first_keywords — Keywords donde la IA supera a Google</div>
+      <div class="vr-body">
+        <div class="vr-field-caption">Para estas keywords, optimizar para IA (GEO) es más rentable que el SEO tradicional: los usuarios ya obtienen la respuesta directamente de ChatGPT o Perplexity sin hacer clic en resultados. Son tu ventaja competitiva del futuro.</div>
+        <div class="tags">${d.geo_first_keywords.map(k=>`<span class="tag purple">${k}</span>`).join('')}</div>
+      </div>
+    </div>` : '',
+
+    // content_gap_opportunities
+    d.content_gap_opportunities?.length ? `<div class="vr-section">
+      <div class="vr-section-title"><span>🎯</span>content_gap_opportunities — Oportunidades de content gap</div>
+      <div class="vr-body">
+        <div class="vr-field-caption">Temas y ángulos que la competencia no cubre bien y donde puedes posicionarte rápidamente tanto en Google como en la IA con contenido diferencial.</div>
+        ${listItems(d.content_gap_opportunities, '🎯')}
+      </div>
+    </div>` : '',
+  ].join('');
+}
+
+// ── Schema ────────────────────────────────────────────────────────────────────
+function renderVisualSchema(d) {
+  const jsonStr = JSON.stringify(d.json_ld||{}, null, 2);
+  const snippet = `<script type="application/ld+json">\n${jsonStr}\n<\/script>`;
+  return [
+    fcard('🗂️', 'schema_type — Tipo de schema generado', 'Categoría del marcado estructurado según schema.org. Cada tipo le dice a Google (y a la IA) exactamente qué clase de contenido es la página.', `<span class="badge alta">${d.schema_type||'—'}</span>`),
+
+    textCard('💬', 'implementation_tip — Cómo implementarlo', 'Instrucción específica para insertar correctamente este schema en tu página. Sigue este consejo para evitar errores de validación en Google Search Console.', d.implementation_tip),
+
+    `<div class="vr-section">
+      <div class="vr-section-title"><span>💻</span>json_ld — Código JSON-LD listo para pegar en tu &lt;head&gt;</div>
+      <div class="vr-body">
+        <div class="vr-field-caption">Copia este bloque completo y pégalo dentro del &lt;head&gt; de tu HTML, antes de &lt;/head&gt;. Valídalo después en el <a href="https://search.google.com/test/rich-results" target="_blank" style="color:var(--accent)">Rich Results Test de Google</a>.</div>
+        <div class="code-block"><button class="copy-btn" onclick="copyCode(this)">Copiar</button><pre>${snippet.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</pre></div>
+      </div>
+    </div>`,
+  ].join('');
+}
+
+// ── Main render ───────────────────────────────────────────────────────────────
+function render(containerId, status, time, data, visualHtml) {
+  const ok = status >= 200 && status < 300;
+  const el = $(containerId);
+  el.innerHTML = `
+    <div class="response-meta">
+      <span class="res-status ${ok?'ok':'err'}">${status} ${ok?'OK':'Error'}</span>
+      <span class="res-time">⏱ ${time}ms</span>
+    </div>
+    ${ok && visualHtml ? `<div class="visual-result">${visualHtml}</div>` : ''}
+    <details class="json-collapse">
+      <summary><span style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-light)">{ JSON }</span></summary>
+      <div class="json-inner">${jsonBlock(data)}</div>
+    </details>`;
+  el.classList.add('visible');
+}
+
+async function apiFetch(path, method='GET', body=null, loadingId) {
+  setLoading(loadingId, true);
+  const t0 = Date.now();
+  try {
+    const opts = { method, headers: { 'Content-Type': 'application/json', 'x-api-key': API_KEY } };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch(baseUrl() + path, opts);
+    const data = await res.json().catch(() => ({}));
+    return { status: res.status, time: Date.now()-t0, data };
+  } catch(e) {
+    return { status: 0, time: Date.now()-t0, data: { error: e.message } };
+  } finally {
+    setLoading(loadingId, false);
+  }
+}
+
+async function checkHealth() {
+  try {
+    const res = await fetch(baseUrl() + '/health');
+    const ok = res.ok;
+    $('statusDot').className = 'dot ' + (ok?'online':'offline');
+    $('statusText').textContent = ok ? 'API online' : 'API offline';
+  } catch { $('statusDot').className = 'dot offline'; $('statusText').textContent = 'Sin conexión'; }
+}
+checkHealth();
+
+async function callHealth() {
+  const {status,time,data} = await apiFetch('/health','GET',null,'health');
+  render('res-health', status, time, data, `${section('💚','Estado de la API',`${fieldRow('Estado',`<span class="badge alta">✓ ${data.status||'ok'}</span>`,'La API está activa y procesando peticiones.')}${fieldRow('Versión',data.version||'—','Versión actual del servicio desplegado.')}`)}` );
+}
+
+async function callSeo() {
+  const body = { text: $('seo-text').value, language: $('seo-lang').value, sector: $('seo-sector').value || undefined };
+  const {status,time,data} = await apiFetch('/analyze/seo','POST',body,'seo');
+  render('res-seo', status, time, data, status<300 ? renderVisualSeo(data) : null);
+}
+
+async function callGeo() {
+  const body = { text: $('geo-text').value, language: $('geo-lang').value, sector: $('geo-sector').value || undefined };
+  const {status,time,data} = await apiFetch('/analyze/geo','POST',body,'geo');
+  render('res-geo', status, time, data, status<300 ? renderVisualGeo(data) : null);
+}
+
+async function callFull() {
+  const body = { text: $('full-text').value, language: $('full-lang').value, sector: $('full-sector').value || undefined };
+  const {status,time,data} = await apiFetch('/analyze/full','POST',body,'full');
+  const visual = status<300 ? `
+    <div style="padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:4px">📊 Análisis SEO</div>
+    ${renderVisualSeo(data.seo||{})}
+    <div style="padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:4px;margin-top:8px">🤖 Análisis GEO</div>
+    ${renderVisualGeo(data.geo||{})}
+  ` : null;
+  render('res-full', status, time, data, visual);
+}
+
+async function callUrl() {
+  const body = { url: $('url-url').value, language: $('url-lang').value, sector: $('url-sector').value || undefined };
+  const {status,time,data} = await apiFetch('/analyze/url','POST',body,'url');
+  const visual = status<300 ? `
+    ${data.seo ? `<div style="padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:4px">📊 SEO</div>${renderVisualSeo(data.seo)}` : renderVisualSeo(data)}
+    ${data.geo ? `<div style="padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:13px;font-weight:600;color:var(--text-muted);margin-bottom:4px;margin-top:8px">🤖 GEO</div>${renderVisualGeo(data.geo)}` : ''}
+  ` : null;
+  render('res-url', status, time, data, visual);
+}
+
+async function callKeywords() {
+  const body = { text: $('kw-text').value, language: $('kw-lang').value, sector: $('kw-sector').value || undefined };
+  const {status,time,data} = await apiFetch('/keywords','POST',body,'keywords');
+  render('res-keywords', status, time, data, status<300 ? renderVisualKeywords(data) : null);
+}
+
+async function callSchema() {
+  const body = { text: $('schema-text').value, schema_type: $('schema-type').value, language: $('schema-lang').value };
+  const {status,time,data} = await apiFetch('/schema','POST',body,'schema');
+  render('res-schema', status, time, data, status<300 ? renderVisualSchema(data) : null);
+}
+</script>
+</body>
+</html>

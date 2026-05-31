@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from fastapi import FastAPI, Depends, HTTPException, Request, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
@@ -46,7 +46,7 @@ def _merge_text_input(
     target_keyword: str | None,
 ) -> TextInput:
     """Fusiona query params con body JSON. Query params tienen prioridad."""
-    merged_text = text or (body.text if body else None)
+    merged_text = text or (body.text if body else None) or (body.content if body else None)
     merged_url = url or (body.url if body else None)
     merged_lang = language or (body.language if body else None) or "es"
     merged_kw = target_keyword or (body.target_keyword if body else None)
@@ -123,7 +123,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
     allow_methods=["*"],
-    allow_headers=["*"],
+    allow_headers=["*", "x-api-key", "X-RapidAPI-Proxy-Secret", "Content-Type", "Authorization"],
+    expose_headers=["*"],
 )
 
 
@@ -177,6 +178,34 @@ def _parse_json(raw: str, model_class):
 
 
 # ── Health ────────────────────────────────────────────────────────────────────
+
+@app.post("/debug-body", include_in_schema=False)
+async def debug_body(request: Request):
+    """Temporal: muestra el body raw que recibe FastAPI."""
+    body_bytes = await request.body()
+    headers = dict(request.headers)
+    try:
+        body_json = await request.json()
+    except Exception as e:
+        body_json = {"parse_error": str(e)}
+    return {"raw": body_bytes.decode("utf-8", errors="replace"), "json": body_json, "content_type": headers.get("content-type")}
+
+
+@app.get("/debug-keys", include_in_schema=False)
+async def debug_keys():
+    """Temporal: muestra las keys configuradas en Vercel."""
+    raw = os.environ.get("API_KEYS", "VACÍO")
+    keys = [k.strip() for k in raw.split(",") if k.strip()]
+    return {"raw_length": len(raw), "num_keys": len(keys), "keys_preview": [k[:8]+"…" for k in keys]}
+
+
+@app.get("/playground", response_class=HTMLResponse, include_in_schema=False)
+async def playground():
+    """Playground UI para probar la API."""
+    html_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "playground.html")
+    with open(html_path, "r", encoding="utf-8") as f:
+        return f.read()
+
 
 @app.get(
     "/health",
