@@ -2,7 +2,7 @@
 core/models.py — Schemas de entrada/salida de todos los endpoints.
 """
 from pydantic import BaseModel, Field, HttpUrl
-from typing import Optional
+from typing import Any, Literal, Optional
 
 
 # ── Inputs ───────────────────────────────────────────────────────────────────
@@ -102,8 +102,89 @@ class SchemaOutput(BaseModel):
     implementation_tip: str
 
 
+# ── Improve ───────────────────────────────────────────────────────────────────
+
+class ImproveBody(BaseModel):
+    text: Optional[str] = Field(None, description="Texto original a mejorar")
+    content: Optional[str] = Field(None, description="Alias de text")
+    improvements: list[str] = Field(default_factory=list, description="Lista de mejoras a aplicar")
+    language: Optional[str] = Field(None, description="Idioma del texto")
+
+
+class ImproveOutput(BaseModel):
+    improved_text: str = Field(..., description="Texto completo mejorado")
+    changes_made: list[str] = Field(..., description="Cambios aplicados")
+
+
 # ── Error ─────────────────────────────────────────────────────────────────────
 
 class ErrorResponse(BaseModel):
     error: str
     detail: Optional[str] = None
+
+
+# ── V2 Inputs ─────────────────────────────────────────────────────────────────
+
+class V2AnalyzeBody(BaseModel):
+    type: Literal["url", "text", "keywords"] = Field(..., description="Tipo de análisis")
+    url: Optional[str] = Field(None, description="URL a analizar (requerido si type=url)")
+    text: Optional[str] = Field(None, description="Texto a analizar (requerido si type=text o keywords)")
+    language: Optional[str] = Field("es", description="Idioma objetivo")
+    target_keyword: Optional[str] = Field(None, description="Keyword principal")
+    session_id: Optional[str] = Field(None, description="ID de sesión del navegador para historial")
+
+
+# ── V2 Responses ──────────────────────────────────────────────────────────────
+
+class AnalysisSummary(BaseModel):
+    id: str
+    type: str
+    title: str
+    seo_score: Optional[int] = None
+    geo_score: Optional[int] = None
+    session_id: Optional[str] = None
+    created_at: str
+
+
+class V2AnalysisResponse(BaseModel):
+    analysis_id: str
+    type: str
+    title: str
+    result: Any
+    seo_score: Optional[int] = None
+    geo_score: Optional[int] = None
+    created_at: str
+
+
+class AnalysisDetail(BaseModel):
+    id: str
+    type: str
+    title: str
+    input_data: dict
+    result: Any
+    seo_score: Optional[int] = None
+    geo_score: Optional[int] = None
+    session_id: Optional[str] = None
+    created_at: str
+
+
+# ── Improvements ──────────────────────────────────────────────────────────────
+
+class ImprovementItem(BaseModel):
+    id: str
+    category: str = Field(..., description="seo | geo")
+    priority: str = Field(..., description="high | medium | low")
+    field: str = Field(..., description="Elemento específico a mejorar")
+    current_issue: str = Field(..., description="Problema actual en 1 frase")
+    suggestion: str = Field(..., description="Acción concreta a realizar")
+    example: Optional[str] = Field(None, description="Ejemplo del valor mejorado")
+    estimated_seo_delta: int = Field(0, description="Puntos SEO estimados a ganar")
+    estimated_geo_delta: int = Field(0, description="Puntos GEO estimados a ganar")
+    effort: str = Field(..., description="quick | medium | involved")
+
+
+class ImprovementsOutput(BaseModel):
+    analysis_id: Optional[str] = None
+    improvements: list[ImprovementItem]
+    total_potential_seo_gain: int
+    total_potential_geo_gain: int

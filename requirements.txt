@@ -6,6 +6,8 @@ python-multipart==0.0.20
 pydantic==2.10.3
 beautifulsoup4==4.12.3
 slowapi==0.1.9
+aiosqlite==0.20.0
+eval_type_backport>=0.2.0
 
 # Dev / testing
 pytest>=8.0

@@ -1,0 +1,1500 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Surface — SEO + GEO Optimizer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300..700&family=Geist+Mono:wght@400;500&family=Hanken+Grotesk:wght@300..700&display=swap" rel="stylesheet" />
+<style>
+/* ============================================================
+   Surface — SEO + GEO Optimizer
+   Design tokens & base styles
+   ============================================================ */
+
+:root {
+  --font-ui: "Geist", system-ui, -apple-system, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", monospace;
+
+  --bg: oklch(0.992 0.004 80);
+  --bg-2: oklch(0.975 0.005 80);
+  --surface: oklch(1 0 0);
+  --surface-2: oklch(0.985 0.004 80);
+  --elev: oklch(1 0 0);
+
+  --ink: oklch(0.23 0.012 60);
+  --ink-2: oklch(0.44 0.012 60);
+  --muted: oklch(0.60 0.012 60);
+  --faint: oklch(0.74 0.010 60);
+
+  --border: oklch(0.915 0.005 70);
+  --border-2: oklch(0.95 0.004 70);
+
+  --seo: oklch(0.67 0.18 45);
+  --seo-soft: oklch(0.95 0.04 60);
+  --seo-ink: oklch(0.50 0.16 42);
+
+  --geo: oklch(0.58 0.16 285);
+  --geo-soft: oklch(0.95 0.035 290);
+  --geo-ink: oklch(0.48 0.16 285);
+
+  --accent: var(--seo);
+
+  --good: oklch(0.70 0.15 152);
+  --good-soft: oklch(0.95 0.05 152);
+  --warn: oklch(0.78 0.14 78);
+  --warn-soft: oklch(0.96 0.06 85);
+  --poor: oklch(0.63 0.19 27);
+  --poor-soft: oklch(0.95 0.05 30);
+
+  --sh-sm: 0 1px 2px oklch(0.2 0.02 60 / 0.05), 0 1px 1px oklch(0.2 0.02 60 / 0.04);
+  --sh-md: 0 2px 6px oklch(0.2 0.02 60 / 0.06), 0 8px 24px oklch(0.2 0.02 60 / 0.06);
+  --sh-lg: 0 4px 12px oklch(0.2 0.02 60 / 0.08), 0 24px 48px oklch(0.2 0.02 60 / 0.10);
+  --ring: 0 0 0 3px oklch(0.67 0.18 45 / 0.16);
+
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 22px;
+
+  --pad: 20px;
+  --gap: 16px;
+  --row-h: 44px;
+  --fs-base: 15px;
+  --fs-sm: 13px;
+  --fs-xs: 11.5px;
+}
+
+[data-density="compact"] {
+  --pad: 14px; --gap: 11px; --row-h: 38px;
+  --fs-base: 14px; --fs-sm: 12.5px; --fs-xs: 11px;
+}
+[data-density="comfy"] {
+  --pad: 26px; --gap: 22px; --row-h: 50px;
+  --fs-base: 16px; --fs-sm: 14px; --fs-xs: 12px;
+}
+
+[data-theme="dark"] {
+  --bg: oklch(0.19 0.008 70); --bg-2: oklch(0.22 0.008 70);
+  --surface: oklch(0.235 0.009 70); --surface-2: oklch(0.26 0.009 70);
+  --elev: oklch(0.27 0.010 70);
+  --ink: oklch(0.96 0.005 80); --ink-2: oklch(0.80 0.008 80);
+  --muted: oklch(0.66 0.010 80); --faint: oklch(0.50 0.010 80);
+  --border: oklch(0.34 0.010 70); --border-2: oklch(0.30 0.009 70);
+  --seo-soft: oklch(0.34 0.06 50); --geo-soft: oklch(0.34 0.06 285);
+  --good-soft: oklch(0.34 0.06 152); --warn-soft: oklch(0.36 0.06 85);
+  --poor-soft: oklch(0.34 0.06 30);
+  --sh-sm: 0 1px 2px oklch(0 0 0 / 0.3);
+  --sh-md: 0 2px 8px oklch(0 0 0 / 0.35), 0 8px 24px oklch(0 0 0 / 0.30);
+  --sh-lg: 0 8px 28px oklch(0 0 0 / 0.45);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100%; }
+body { font-family: var(--font-ui); background: var(--bg); color: var(--ink); font-size: var(--fs-base); line-height: 1.5; -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility; letter-spacing: -0.01em; }
+#root { height: 100%; }
+button { font-family: inherit; cursor: pointer; }
+input, textarea, select { font-family: inherit; }
+::selection { background: oklch(0.67 0.18 45 / 0.22); }
+.mono { font-family: var(--font-mono); font-feature-settings: "tnum" 1; }
+
+::-webkit-scrollbar { width: 11px; height: 11px; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; border: 3px solid var(--bg); }
+::-webkit-scrollbar-thumb:hover { background: var(--faint); }
+::-webkit-scrollbar-track { background: transparent; }
+
+.app-shell { display: grid; grid-template-columns: 248px 1fr; height: 100%; overflow: hidden; }
+[data-density="compact"] .app-shell { grid-template-columns: 220px 1fr; }
+.main-col { display: flex; flex-direction: column; min-width: 0; overflow: hidden; }
+.scroll-area { flex: 1; overflow-y: auto; scroll-behavior: smooth; }
+
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--sh-sm); }
+
+.fade-in { animation: fadeIn 0.4s cubic-bezier(0.22,1,0.36,1) forwards; }
+.rise-in { animation: riseIn 0.5s cubic-bezier(0.22,1,0.36,1) forwards; }
+@keyframes fadeIn { from { transform: translateY(4px); } to { transform: none; } }
+@keyframes riseIn { from { transform: translateY(10px); } to { transform: none; } }
+
+.stagger > * { animation: riseIn 0.5s cubic-bezier(0.22,1,0.36,1) forwards; }
+.stagger > *:nth-child(1) { animation-delay: 0.02s; }
+.stagger > *:nth-child(2) { animation-delay: 0.07s; }
+.stagger > *:nth-child(3) { animation-delay: 0.12s; }
+.stagger > *:nth-child(4) { animation-delay: 0.17s; }
+.stagger > *:nth-child(5) { animation-delay: 0.22s; }
+.stagger > *:nth-child(6) { animation-delay: 0.27s; }
+
+@media (prefers-reduced-motion: reduce) { * { animation-duration: 0.001s !important; } }
+
+/* Tweaks Panel */
+.tweaks-fab { position: fixed; bottom: 20px; right: 20px; z-index: 9999; width: 40px; height: 40px; border-radius: 50%; background: var(--surface); border: 1px solid var(--border); box-shadow: var(--sh-md); display: grid; place-items: center; color: var(--muted); transition: color 0.15s; }
+.tweaks-fab:hover { color: var(--ink); }
+.tweaks-panel { position: fixed; bottom: 70px; right: 20px; z-index: 9998; width: 280px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-xl); box-shadow: var(--sh-lg); padding: var(--pad); display: flex; flex-direction: column; gap: 14px; }
+.tweaks-title { font-size: var(--fs-sm); font-weight: 600; color: var(--ink-2); }
+.tweak-row { display: flex; flex-direction: column; gap: 6px; }
+.tweak-label { font-size: var(--fs-xs); color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
+.tweak-chips { display: flex; gap: 6px; flex-wrap: wrap; }
+.tweak-chip { padding: 4px 10px; border-radius: 99px; border: 1px solid var(--border); background: var(--bg-2); font-size: var(--fs-xs); cursor: pointer; color: var(--ink-2); transition: all 0.12s; }
+.tweak-chip[data-active="true"] { background: var(--accent); color: white; border-color: transparent; }
+.tweak-color-row { display: flex; gap: 8px; }
+.tweak-swatch { width: 24px; height: 24px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: transform 0.12s; }
+.tweak-swatch:hover { transform: scale(1.1); }
+.tweak-swatch[data-active="true"] { border-color: var(--ink); }
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script>
+// Session management
+(function() {
+  var sid = localStorage.getItem('sg_session_id');
+  if (!sid) {
+    sid = 'xxxxxxxxxxxx4xxxyxxxxxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      var r = Math.random() * 16 | 0;
+      return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+    });
+    localStorage.setItem('sg_session_id', sid);
+  }
+  window.SG_SESSION_ID = sid;
+})();
+
+function getApiHeaders() {
+  var h = { 'Content-Type': 'application/json' };
+  var k = localStorage.getItem('sg_api_key');
+  if (k) h['x-api-key'] = k;
+  return h;
+}
+
+async function apiCall(method, path, body) {
+  var opts = { method: method, headers: getApiHeaders() };
+  if (body) opts.body = JSON.stringify(body);
+  var res = await fetch(path, opts);
+  if (!res.ok) {
+    var msg = 'Error ' + res.status;
+    try { var j = await res.json(); msg = j.detail || j.message || msg; } catch(e) {}
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
+async function runAnalysis(type, inputVal, opts) {
+  var body = { type: type, session_id: window.SG_SESSION_ID };
+  if (opts && opts.language) body.language = opts.language;
+  if (opts && opts.keyword) body.target_keyword = opts.keyword;
+  if (type === 'url') {
+    body.url = inputVal;
+    if (opts && opts.text) body.text = opts.text;
+  } else if (type === 'text') {
+    body.text = inputVal;
+    if (opts && opts.url) body.url = opts.url;
+  } else if (type === 'keywords') {
+    body.text = inputVal;
+  }
+  return apiCall('POST', '/v2/analyze', body);
+}
+
+async function loadRecents(limit) {
+  return apiCall('GET', '/v2/analyses?session_id=' + window.SG_SESSION_ID + '&limit=' + (limit || 20));
+}
+
+async function loadAnalysis(id) {
+  return apiCall('GET', '/v2/analyses/' + id);
+}
+
+async function loadImprovements(id) {
+  return apiCall('POST', '/v2/analyses/' + id + '/improvements');
+}
+
+async function deleteAnalysis(id) {
+  return apiCall('DELETE', '/v2/analyses/' + id);
+}
+
+function populateSurfaceData(mode, inputVal, opts, data) {
+  var result = data.result || {};
+  var seo = result.seo || {};
+  var geo = result.geo || {};
+  var isKw = mode === 'keyword' || mode === 'keywords';
+
+  var citLike = geo.citation_likelihood || 'baja';
+  var geoScore = geo.geo_score || 0;
+  var baseRate = citLike === 'alta' ? Math.round(geoScore * 0.7)
+    : citLike === 'media' ? Math.round(geoScore * 0.45)
+    : Math.round(geoScore * 0.2);
+
+  var targetUrl = mode === 'url' ? inputVal : ((opts && opts.url) || '(texto)');
+  var targetDomain = '';
+  try { targetDomain = new URL('https://' + targetUrl.replace(/^https?:\/\//, '')).hostname; } catch(e) {}
+
+  var TARGET = {
+    mode: mode, url: targetUrl, domain: targetDomain,
+    title: isKw ? ('Keyword: ' + inputVal) : (seo.title || 'Análisis'),
+    favicon: (seo.title || inputVal || 'S').slice(0, 2).toUpperCase(),
+    fetchedAt: new Date().toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }),
+    words: isKw ? 0 : ((opts && opts.text ? opts.text : inputVal || '').split(/\s+/).filter(Boolean).length),
+    query: (opts && opts.keyword) || seo.focus_keyword || inputVal || '',
+  };
+
+  var SCORES = isKw ? { seo: 0, geo: 0 } : { seo: seo.seo_score || 0, geo: geo.geo_score || 0 };
+
+  var ENGINES = [
+    { id: 'chatgpt', name: 'ChatGPT', cited: citLike === 'alta', mention: Math.min(95, Math.round(baseRate * 0.85)), note: citLike === 'alta' ? 'Te cita como fuente relevante' : citLike === 'media' ? 'Te menciona ocasionalmente' : 'No detectado en respuestas' },
+    { id: 'perplexity', name: 'Perplexity', cited: citLike !== 'baja', mention: Math.min(95, Math.round(baseRate * 1.15)), note: citLike !== 'baja' ? 'Citado como fuente secundaria' : 'Sin aparición detectada' },
+    { id: 'aio', name: 'Google AI Overviews', cited: false, mention: Math.min(95, Math.round(baseRate * 0.65)), note: 'Sin aparición en el resumen IA' },
+    { id: 'gemini', name: 'Gemini', cited: citLike === 'alta', mention: Math.min(95, Math.round(baseRate * 0.75)), note: citLike === 'alta' ? 'Citado con enlace directo' : 'Aparece sin enlace directo' },
+  ];
+
+  var seoS = SCORES.seo;
+  var geoS = SCORES.geo;
+  var CATEGORIES = [
+    { id: 'content', lane: 'seo', label: 'Contenido y relevancia', score: Math.min(95, seoS + 5), items: ((seo.secondary_keywords || []).length || 9) + ' señales' },
+    { id: 'structure', lane: 'seo', label: 'Estructura y encabezados', score: Math.max(20, seoS - 8), items: '7 señales' },
+    { id: 'technical', lane: 'seo', label: 'Técnico y rendimiento', score: Math.min(95, seoS + 12), items: '11 señales' },
+    { id: 'answerability', lane: 'geo', label: 'Respuesta directa (GEO)', score: Math.max(20, geoS - 14), items: '6 señales' },
+    { id: 'citability', lane: 'geo', label: 'Citabilidad y fuentes', score: geoS, items: '8 señales' },
+    { id: 'authority', lane: 'geo', label: 'Autoridad y E-E-A-T', score: Math.min(90, geoS + 8), items: '5 señales' },
+  ];
+
+  var CONTENT = [].concat(
+    seo.title ? [{ id: 'h1', type: 'h1', text: seo.title }] : [],
+    geo.answer_ready_summary ? [{ id: 'p1', type: 'p', text: geo.answer_ready_summary }] : [],
+    geo.ai_snippet ? [{ id: 'p2', type: 'p', text: geo.ai_snippet }] : [],
+    seo.meta_description ? [{ id: 'p3', type: 'p', text: seo.meta_description }] : []
+  );
+
+  var sovShare = Math.round(geoS * 0.4);
+  var GEO_SOV = {
+    share: sovShare,
+    avgPos: sovShare > 40 ? 4 : sovShare > 25 ? 6 : 9,
+    projPos: Math.max(2, Math.round((sovShare > 40 ? 4 : 6) * 0.6)),
+    category: seo.focus_keyword || inputVal || '',
+    rivals: [],
+  };
+
+  var kwResult = isKw ? result : {};
+  var KEYWORD_DATA = {
+    query: isKw ? inputVal : (seo.focus_keyword || ''),
+    intent: 'Informativa',
+    volume: 0,
+    yourPosSerp: null,
+    yourPosAi: null,
+    serp: [],
+    aiBrands: [],
+    engines: ENGINES.map(function(e) { return { id: e.id, name: e.name, present: e.cited, cited: e.cited }; }),
+    related: isKw
+      ? (kwResult.keywords || []).slice(0, 6).map(function(k) { return { q: k.keyword, volume: 0, intent: k.intent, you: false, angle: k.content_angle }; })
+      : (geo.llm_query_matches || []).slice(0, 6).map(function(q) { return { q: q, volume: 0, intent: 'Informativa', you: false }; }),
+  };
+
+  var prevHistory = (window.SURFACE_DATA && window.SURFACE_DATA.HISTORY) || [];
+  window.SURFACE_DATA = {
+    PRODUCT: { name: 'Surface', tagline: 'Optimiza para búsqueda y para IA' },
+    TARGET: TARGET, SCORES: SCORES, ENGINES: ENGINES, CATEGORIES: CATEGORIES, CONTENT: CONTENT,
+    SUGGESTIONS: [],
+    GEO_SOV: GEO_SOV,
+    DOMAIN: { domain: targetDomain, pagesCrawled: 0, seo: seoS, geo: geoS, issues: [], pages: [] },
+    KEYWORD: KEYWORD_DATA,
+    COMPETITORS: [], PROMPTS: [], BRAND_RANKING: [],
+    COVERAGE: { days: [], series: [] },
+    HISTORY: prevHistory,
+    _analysisId: data.analysis_id || data.id,
+    _rawSeo: seo,
+    _rawGeo: geo,
+    _rawKw: kwResult,
+  };
+}
+
+function mapImprovements(apiImps, content) {
+  return (apiImps || []).map(function(imp) {
+    var impact = (imp.estimated_seo_delta || 0) + (imp.estimated_geo_delta || 0);
+    var effortMap = { quick: 'Bajo', medium: 'Medio', involved: 'Alto' };
+    var effort = effortMap[imp.effort] || 'Bajo';
+    var priority = (imp.priority === 'high' && impact >= 12) ? 'Quick win'
+      : imp.priority === 'high' ? 'Alto impacto'
+      : imp.priority === 'medium' ? 'Menor' : 'Menor';
+
+    var editsBlock = null, addsBlock = null;
+    if (imp.example) {
+      if (imp.field === 'title_tag' || imp.field === 'h1') {
+        if ((content || []).find(function(b) { return b.id === 'h1'; })) editsBlock = { id: 'h1', text: imp.example };
+      } else if (['answer_format', 'ai_snippet', 'answer_block'].indexOf(imp.field) !== -1) {
+        addsBlock = { id: 'ans-' + imp.id, type: 'answer', after: 'h1', text: imp.example };
+      } else if (['schema_markup', 'faq'].indexOf(imp.field) !== -1) {
+        addsBlock = { id: 'faq-' + imp.id, type: 'faq', after: 'p1', text: imp.example };
+      }
+    }
+
+    return {
+      id: imp.id,
+      lane: imp.category,
+      title: imp.suggestion,
+      desc: imp.current_issue,
+      impact: impact, effort: effort, priority: priority,
+      kind: (editsBlock || addsBlock) ? 'content' : 'global',
+      editsBlock: editsBlock, addsBlock: addsBlock,
+    };
+  });
+}
+
+function formatRelativeTime(isoStr) {
+  try {
+    var d = new Date(isoStr + (isoStr.endsWith('Z') ? '' : 'Z'));
+    var diff = (Date.now() - d) / 1000;
+    if (diff < 60) return 'hace unos segundos';
+    if (diff < 3600) return 'hace ' + Math.round(diff / 60) + ' min';
+    if (diff < 86400) return 'hace ' + Math.round(diff / 3600) + ' h';
+    if (diff < 86400 * 7) return 'hace ' + Math.round(diff / 86400) + ' días';
+    return d.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+  } catch(e) { return ''; }
+}
+
+window.SURFACE_DATA = {
+  PRODUCT: { name: 'Surface', tagline: 'Optimiza para búsqueda y para IA' },
+  TARGET: { mode: 'url', url: '', domain: '', title: '', favicon: 'S', fetchedAt: '', words: 0, query: '' },
+  SCORES: { seo: 0, geo: 0 },
+  ENGINES: [], CATEGORIES: [], CONTENT: [],
+  SUGGESTIONS: [], GEO_SOV: { share: 0, avgPos: 0, projPos: 0, category: '', rivals: [] },
+  DOMAIN: { domain: '', pagesCrawled: 0, seo: 0, geo: 0, issues: [], pages: [] },
+  KEYWORD: { query: '', intent: '', volume: 0, yourPosSerp: null, yourPosAi: null, serp: [], aiBrands: [], engines: [], related: [] },
+  COMPETITORS: [], PROMPTS: [], BRAND_RANKING: [],
+  COVERAGE: { days: [], series: [] },
+  HISTORY: [],
+  _analysisId: null, _rawSeo: {}, _rawGeo: {}, _rawKw: {},
+};
+</script>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js"></script>
+
+<script type="text/babel">
+const { useState, useEffect, useRef, useCallback } = React;
+
+// ===================== TWEAKS =====================
+function useTweaks(defaults) {
+  const [t, setT] = useState(() => {
+    try {
+      const s = localStorage.getItem('sg_tweaks');
+      return s ? { ...defaults, ...JSON.parse(s) } : defaults;
+    } catch { return defaults; }
+  });
+  const setTweak = (key, val) => {
+    setT(prev => {
+      const next = { ...prev, [key]: val };
+      localStorage.setItem('sg_tweaks', JSON.stringify(next));
+      return next;
+    });
+  };
+  return [t, setTweak];
+}
+
+function TweaksPanel({ t, setTweak }) {
+  const [open, setOpen] = useState(false);
+  const themeOptions = [{ label: 'Claro', value: 'light' }, { label: 'Oscuro', value: 'dark' }, { label: 'Auto', value: 'auto' }];
+  const densityOptions = [{ label: 'Compacto', value: 'compact' }, { label: 'Normal', value: 'regular' }, { label: 'Espacioso', value: 'comfy' }];
+  const fontOptions = [{ label: 'Geist', value: 'Geist' }, { label: 'Hanken', value: 'Hanken Grotesk' }, { label: 'Sistema', value: 'system-ui' }];
+  const accentOptions = [
+    { label: 'Ámbar', value: 'oklch(0.67 0.18 45)' },
+    { label: 'Violeta', value: 'oklch(0.58 0.16 285)' },
+    { label: 'Verde', value: 'oklch(0.65 0.17 152)' },
+    { label: 'Azul', value: 'oklch(0.62 0.18 240)' },
+    { label: 'Rosa', value: 'oklch(0.65 0.19 350)' },
+  ];
+  return (
+    <>
+      <button className="tweaks-fab" onClick={() => setOpen(o => !o)} title="Personalizar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.22 4.22l2.83 2.83M16.95 16.95l2.83 2.83M1 12h4M19 12h4M4.22 19.78l2.83-2.83M16.95 7.05l2.83-2.83"/>
+        </svg>
+      </button>
+      {open && (
+        <div className="tweaks-panel">
+          <div className="tweaks-title">Personalizar</div>
+          <div className="tweak-row">
+            <div className="tweak-label">Tema</div>
+            <div className="tweak-chips">
+              {themeOptions.map(o => <button key={o.value} className="tweak-chip" data-active={t.theme === o.value ? "true" : "false"} onClick={() => setTweak('theme', o.value)}>{o.label}</button>)}
+            </div>
+          </div>
+          <div className="tweak-row">
+            <div className="tweak-label">Densidad</div>
+            <div className="tweak-chips">
+              {densityOptions.map(o => <button key={o.value} className="tweak-chip" data-active={t.density === o.value ? "true" : "false"} onClick={() => setTweak('density', o.value)}>{o.label}</button>)}
+            </div>
+          </div>
+          <div className="tweak-row">
+            <div className="tweak-label">Fuente</div>
+            <div className="tweak-chips">
+              {fontOptions.map(o => <button key={o.value} className="tweak-chip" data-active={t.font === o.value ? "true" : "false"} onClick={() => setTweak('font', o.value)}>{o.label}</button>)}
+            </div>
+          </div>
+          <div className="tweak-row">
+            <div className="tweak-label">Acento</div>
+            <div className="tweak-color-row">
+              {accentOptions.map(o => (
+                <div key={o.value} className="tweak-swatch" data-active={t.accent === o.value ? "true" : "false"} style={{ background: o.value }} title={o.label} onClick={() => setTweak('accent', o.value)} />
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ===================== ICONS =====================
+function Icon({ name, size = 16, stroke = 'currentColor', strokeWidth = 1.75 }) {
+  const p = { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke, strokeWidth, strokeLinecap: 'round', strokeLinejoin: 'round' };
+  const icons = {
+    plus: <><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></>,
+    target: <><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></>,
+    bolt: <><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></>,
+    compare: <><path d="M18 8L22 12L18 16"/><path d="M6 8L2 12L6 16"/><line x1="2" y1="12" x2="22" y2="12"/></>,
+    clock: <><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>,
+    pin: <><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></>,
+    settings: <><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></>,
+    globe: <><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></>,
+    file: <><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z"/><polyline points="13 2 13 9 20 9"/></>,
+    search: <><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></>,
+    'arrow-right': <><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></>,
+    'chevron-right': <><polyline points="9 18 15 12 9 6"/></>,
+    'chevron-down': <><polyline points="6 9 12 15 18 9"/></>,
+    check: <><polyline points="20 6 9 17 4 12"/></>,
+    x: <><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></>,
+    trash: <><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></>,
+    refresh: <><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></>,
+    zap: <><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></>,
+    'trending-up': <><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></>,
+    info: <><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></>,
+    'external-link': <><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></>,
+    layout: <><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="9" y1="21" x2="9" y2="9"/></>,
+    copy: <><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></>,
+    download: <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></>,
+    sparkles: <><path d="M12 2L9.5 9.5 2 12l7.5 2.5L12 22l2.5-7.5L22 12l-7.5-2.5z"/></>,
+    eye: <><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></>,
+    edit: <><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></>,
+  };
+  return <svg {...p}>{icons[name] || null}</svg>;
+}
+
+function Logo({ size = 28 }) {
+  return (
+    <div style={{ width: size, height: size, borderRadius: 8, background: 'var(--accent)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+      <svg width={size * 0.6} height={size * 0.6} viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/>
+        <line x1="12" y1="2" x2="12" y2="8"/><line x1="12" y1="16" x2="12" y2="22"/>
+      </svg>
+    </div>
+  );
+}
+
+function useCountUp(target, duration = 900) {
+  const [val, setVal] = useState(0);
+  useEffect(() => {
+    let start = null;
+    const step = ts => {
+      if (!start) start = ts;
+      const p = Math.min((ts - start) / duration, 1);
+      const ease = 1 - Math.pow(1 - p, 3);
+      setVal(Math.round(target * ease));
+      if (p < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }, [target]);
+  return val;
+}
+
+function scoreColor(s) {
+  if (s >= 70) return 'var(--good)';
+  if (s >= 45) return 'var(--warn)';
+  return 'var(--poor)';
+}
+
+function laneColor(lane) {
+  return lane === 'seo' ? 'var(--seo)' : 'var(--geo)';
+}
+
+function ScoreRing({ score = 0, size = 88, lane = 'seo', label, sub }) {
+  const displayed = useCountUp(score);
+  const r = (size - 10) / 2;
+  const circ = 2 * Math.PI * r;
+  const progress = (displayed / 100) * circ;
+  const color = lane === 'seo' ? 'var(--seo)' : 'var(--geo)';
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+      <div style={{ position: 'relative', width: size, height: size }}>
+        <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+          <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="var(--border)" strokeWidth="8" />
+          <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth="8"
+            strokeDasharray={circ} strokeDashoffset={circ - progress}
+            strokeLinecap="round" style={{ transition: 'stroke-dashoffset 0.05s' }} />
+        </svg>
+        <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+          <span style={{ fontSize: size * 0.22, fontWeight: 700, color, lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>{displayed}</span>
+          {sub && <span style={{ fontSize: size * 0.13, color: 'var(--muted)', fontWeight: 500, marginTop: 1 }}>{sub}</span>}
+        </div>
+      </div>
+      {label && <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--ink-2)', fontWeight: 500 }}>{label}</span>}
+    </div>
+  );
+}
+
+function Pill({ children, color, bg, style }) {
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 4,
+      padding: '2px 8px', borderRadius: 99,
+      fontSize: 'var(--fs-xs)', fontWeight: 600,
+      color: color || 'var(--ink-2)',
+      background: bg || 'var(--bg-2)',
+      ...style,
+    }}>{children}</span>
+  );
+}
+
+function LaneTag({ lane }) {
+  const isSeo = lane === 'seo';
+  return (
+    <Pill color={isSeo ? 'var(--seo-ink)' : 'var(--geo-ink)'} bg={isSeo ? 'var(--seo-soft)' : 'var(--geo-soft)'}>
+      {isSeo ? 'SEO' : 'GEO'}
+    </Pill>
+  );
+}
+
+function Button({ children, variant = 'primary', size = 'md', icon, onClick, disabled, style }) {
+  const base = {
+    display: 'inline-flex', alignItems: 'center', gap: 7,
+    fontWeight: 600, border: 'none', cursor: disabled ? 'not-allowed' : 'pointer',
+    transition: 'all 0.15s', opacity: disabled ? 0.6 : 1,
+    borderRadius: 'var(--r-md)',
+  };
+  const sizes = { sm: { padding: '6px 12px', fontSize: 'var(--fs-sm)' }, md: { padding: '9px 18px', fontSize: 'var(--fs-base)' }, lg: { padding: '12px 24px', fontSize: 'var(--fs-base)' } };
+  const variants = {
+    primary: { background: 'var(--accent)', color: 'white' },
+    secondary: { background: 'var(--surface)', color: 'var(--ink)', border: '1px solid var(--border)', boxShadow: 'var(--sh-sm)' },
+    ghost: { background: 'transparent', color: 'var(--ink-2)' },
+    danger: { background: 'var(--poor-soft)', color: 'var(--poor)' },
+  };
+  return (
+    <button onClick={onClick} disabled={disabled} style={{ ...base, ...sizes[size], ...variants[variant], ...style }}>
+      {icon && <Icon name={icon} size={15} />}
+      {children}
+    </button>
+  );
+}
+
+function BrandBadge({ name, color, size = 28 }) {
+  return (
+    <div style={{ width: size, height: size, borderRadius: 7, background: color, color: 'white', display: 'grid', placeItems: 'center', fontSize: size * 0.38, fontWeight: 700, flexShrink: 0 }}>
+      {name.slice(0, 1)}
+    </div>
+  );
+}
+
+// ===================== SIDEBAR =====================
+const NAV_TOP = [
+  { id: 'input', label: 'Nuevo análisis', icon: 'plus' },
+  { id: 'dashboard', label: 'Resultados', icon: 'target' },
+  { id: 'report', label: 'Mejoras', icon: 'bolt' },
+  { id: 'competitors', label: 'Competencia', icon: 'compare' },
+];
+const NAV_BOT = [
+  { id: 'history', label: 'Historial', icon: 'clock' },
+  { id: 'local', label: 'SEO local', icon: 'pin', soon: true },
+  { id: 'settings', label: 'Ajustes', icon: 'settings' },
+];
+
+function NavItem({ item, active, onNav }) {
+  return (
+    <button
+      onClick={() => !item.soon && onNav(item.id)}
+      style={{
+        display: 'flex', alignItems: 'center', gap: 9,
+        padding: '8px 10px', borderRadius: 'var(--r-md)',
+        border: 'none', cursor: item.soon ? 'default' : 'pointer',
+        background: active ? 'var(--seo-soft)' : 'transparent',
+        color: active ? 'var(--seo-ink)' : item.soon ? 'var(--faint)' : 'var(--ink-2)',
+        fontWeight: active ? 600 : 500, fontSize: 'var(--fs-sm)',
+        transition: 'all 0.12s', textAlign: 'left',
+      }}
+    >
+      <Icon name={item.icon} size={16} />
+      <span style={{ flex: 1 }}>{item.label}</span>
+      {item.soon && <Pill style={{ fontSize: 10 }}>Pronto</Pill>}
+    </button>
+  );
+}
+
+function Sidebar({ active, onNav }) {
+  return (
+    <aside style={{
+      display: 'flex', flexDirection: 'column',
+      background: 'var(--surface)', borderRight: '1px solid var(--border)',
+      padding: '16px 10px', gap: 2,
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 10px', marginBottom: 12 }}>
+        <Logo size={30} />
+        <div>
+          <div style={{ fontWeight: 700, fontSize: 15, lineHeight: 1.2 }}>Surface</div>
+          <div style={{ fontSize: 11, color: 'var(--muted)' }}>SEO + GEO</div>
+        </div>
+      </div>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+        {NAV_TOP.map(item => <NavItem key={item.id} item={item} active={active === item.id} onNav={onNav} />)}
+        <div style={{ height: 1, background: 'var(--border)', margin: '8px 4px' }} />
+        {NAV_BOT.map(item => <NavItem key={item.id} item={item} active={active === item.id} onNav={onNav} />)}
+      </div>
+      <div style={{ marginTop: 8, padding: '12px 10px', background: 'var(--seo-soft)', borderRadius: 'var(--r-md)', border: '1px solid oklch(0.88 0.05 60)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+          <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--seo)', color: 'white', display: 'grid', placeItems: 'center', fontSize: 12, fontWeight: 700 }}>M</div>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600 }}>María L.</div>
+            <div style={{ fontSize: 11, color: 'var(--muted)' }}>Plan Pro</div>
+          </div>
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--seo-ink)', fontWeight: 500 }}>450 / 500 análisis</div>
+        <div style={{ height: 4, background: 'var(--border)', borderRadius: 99, marginTop: 5 }}>
+          <div style={{ height: '100%', width: '90%', background: 'var(--seo)', borderRadius: 99 }} />
+        </div>
+      </div>
+    </aside>
+  );
+}
+
+// ===================== INPUT SCREEN =====================
+const MODES = [
+  { id: 'url', label: 'URL', icon: 'globe', desc: 'Analiza cualquier URL de internet' },
+  { id: 'domain', label: 'Dominio', icon: 'layout', desc: 'Auditoría completa del sitio', soon: true },
+  { id: 'text', label: 'Texto', icon: 'file', desc: 'Analiza contenido propio' },
+  { id: 'keyword', label: 'Keyword', icon: 'search', desc: 'Investiga palabras clave' },
+  { id: 'local', label: 'SEO Local', icon: 'pin', desc: 'Optimiza para búsquedas locales', soon: true },
+  { id: 'compare', label: 'Comparar', icon: 'compare', desc: 'Compara con competidores', soon: true },
+];
+
+const LANGS = [
+  { value: 'es', label: 'Español' },
+  { value: 'en', label: 'English' },
+  { value: 'pt', label: 'Português' },
+  { value: 'fr', label: 'Français' },
+  { value: 'de', label: 'Deutsch' },
+];
+
+function InputScreen({ onAnalyze }) {
+  const [mode, setMode] = useState('url');
+  const [val, setVal] = useState('');
+  const [lang, setLang] = useState('es');
+  const [kwInput, setKwInput] = useState('');
+  const [optUrl, setOptUrl] = useState('');
+
+  const history = (window.SURFACE_DATA && window.SURFACE_DATA.HISTORY) || [];
+  const canSubmit = val.trim().length > 0;
+
+  const handleSubmit = () => {
+    if (!canSubmit) return;
+    onAnalyze(mode, val.trim(), {
+      language: lang,
+      keyword: kwInput.trim() || undefined,
+      url: mode === 'text' ? (optUrl.trim() || undefined) : undefined,
+      text: mode === 'text' ? val.trim() : undefined,
+    });
+  };
+
+  const modeIconFor = (m) => m === 'url' ? 'globe' : m === 'text' ? 'file' : 'search';
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100%', padding: '40px var(--pad)' }}>
+      <div style={{ width: '100%', maxWidth: 640 }}>
+        <div style={{ textAlign: 'center', marginBottom: 36 }}>
+          <h1 style={{ fontSize: 28, fontWeight: 700, margin: '0 0 8px', letterSpacing: '-0.03em' }}>¿Qué quieres optimizar?</h1>
+          <p style={{ color: 'var(--muted)', margin: 0, fontSize: 'var(--fs-sm)' }}>Analiza en segundos para SEO clásico y para aparecer en respuestas de IA</p>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 24 }}>
+          {MODES.map(m => (
+            <button key={m.id} onClick={() => !m.soon && setMode(m.id)} style={{
+              padding: '12px 10px', borderRadius: 'var(--r-md)',
+              border: `1.5px solid ${mode === m.id ? 'var(--seo)' : 'var(--border)'}`,
+              background: mode === m.id ? 'var(--seo-soft)' : 'var(--surface)',
+              color: m.soon ? 'var(--faint)' : mode === m.id ? 'var(--seo-ink)' : 'var(--ink-2)',
+              cursor: m.soon ? 'default' : 'pointer',
+              textAlign: 'left', transition: 'all 0.15s',
+              display: 'flex', flexDirection: 'column', gap: 4,
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Icon name={m.icon} size={14} />
+                <span style={{ fontSize: 'var(--fs-sm)', fontWeight: 600 }}>{m.label}</span>
+                {m.soon && <Pill style={{ fontSize: 9, marginLeft: 'auto' }}>Pronto</Pill>}
+              </div>
+              <span style={{ fontSize: 11, lineHeight: 1.3, color: m.soon ? 'var(--faint)' : 'var(--muted)' }}>{m.desc}</span>
+            </button>
+          ))}
+        </div>
+
+        <div className="card" style={{ padding: 'var(--pad)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {mode === 'url' && (
+            <div>
+              <label style={{ display: 'block', fontSize: 'var(--fs-sm)', color: 'var(--ink-2)', fontWeight: 500, marginBottom: 6 }}>URL a analizar</label>
+              <input value={val} onChange={e => setVal(e.target.value)} placeholder="https://ejemplo.com/mi-articulo"
+                onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+                style={{ width: '100%', padding: '10px 14px', border: '1.5px solid var(--border)', borderRadius: 'var(--r-md)', fontSize: 'var(--fs-base)', background: 'var(--bg)', color: 'var(--ink)', outline: 'none' }} />
+            </div>
+          )}
+          {mode === 'text' && (
+            <div>
+              <label style={{ display: 'block', fontSize: 'var(--fs-sm)', color: 'var(--ink-2)', fontWeight: 500, marginBottom: 6 }}>Contenido a analizar</label>
+              <textarea value={val} onChange={e => setVal(e.target.value)} placeholder="Pega aquí el texto de tu página, artículo o contenido..." rows={6}
+                style={{ width: '100%', padding: '10px 14px', border: '1.5px solid var(--border)', borderRadius: 'var(--r-md)', fontSize: 'var(--fs-base)', background: 'var(--bg)', color: 'var(--ink)', outline: 'none', resize: 'vertical' }} />
+              <input value={optUrl} onChange={e => setOptUrl(e.target.value)} placeholder="URL de la página (opcional)"
+                style={{ width: '100%', marginTop: 8, padding: '8px 12px', border: '1.5px solid var(--border)', borderRadius: 'var(--r-md)', fontSize: 'var(--fs-sm)', background: 'var(--bg)', color: 'var(--ink)', outline: 'none' }} />
+            </div>
+          )}
+          {mode === 'keyword' && (
+            <div>
+              <label style={{ display: 'block', fontSize: 'var(--fs-sm)', color: 'var(--ink-2)', fontWeight: 500, marginBottom: 6 }}>Keyword semilla</label>
+              <input value={val} onChange={e => setVal(e.target.value)} placeholder="ej. optimización seo para startups"
+                onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+                style={{ width: '100%', padding: '10px 14px', border: '1.5px solid var(--border)', borderRadius: 'var(--r-md)', fontSize: 'var(--fs-base)', background: 'var(--bg)', color: 'var(--ink)', outline: 'none' }} />
+            </div>
+          )}
+
+          {(mode === 'url' || mode === 'text') && (
+            <div>
+              <label style={{ display: 'block', fontSize: 'var(--fs-sm)', color: 'var(--ink-2)', fontWeight: 500, marginBottom: 6 }}>
+                Keyword objetivo <span style={{ color: 'var(--muted)', fontWeight: 400 }}>(opcional)</span>
+              </label>
+              <input value={kwInput} onChange={e => setKwInput(e.target.value)} placeholder="ej. herramienta seo para pymes"
+                style={{ width: '100%', padding: '8px 12px', border: '1.5px solid var(--border)', borderRadius: 'var(--r-md)', fontSize: 'var(--fs-sm)', background: 'var(--bg)', color: 'var(--ink)', outline: 'none' }} />
+            </div>
+          )}
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <select value={lang} onChange={e => setLang(e.target.value)} style={{
+              padding: '8px 12px', border: '1.5px solid var(--border)', borderRadius: 'var(--r-md)',
+              background: 'var(--bg)', color: 'var(--ink)', fontSize: 'var(--fs-sm)', cursor: 'pointer', outline: 'none',
+            }}>
+              {LANGS.map(l => <option key={l.value} value={l.value}>{l.label}</option>)}
+            </select>
+            <Button onClick={handleSubmit} disabled={!canSubmit} style={{ flex: 1, justifyContent: 'center' }} icon="arrow-right">Analizar</Button>
+          </div>
+        </div>
+
+        {history.length > 0 && (
+          <div style={{ marginTop: 28 }}>
+            <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, color: 'var(--muted)', marginBottom: 10 }}>Análisis recientes</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {history.slice(0, 5).map(item => (
+                <button key={item.id} onClick={() => onAnalyze('__open__', item.id, {})} style={{
+                  display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px',
+                  background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r-md)',
+                  cursor: 'pointer', textAlign: 'left', transition: 'all 0.12s', width: '100%',
+                }}>
+                  <div style={{ width: 30, height: 30, borderRadius: 8, background: 'var(--bg-2)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                    <Icon name={modeIconFor(item.type || 'url')} size={14} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.target || 'Sin título'}</div>
+                    <div style={{ fontSize: 11, color: 'var(--muted)' }}>{item.when}</div>
+                  </div>
+                  {item.seo > 0 && (
+                    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                      <Pill color="var(--seo-ink)" bg="var(--seo-soft)">SEO {item.seo}</Pill>
+                      <Pill color="var(--geo-ink)" bg="var(--geo-soft)">GEO {item.geo}</Pill>
+                    </div>
+                  )}
+                  <Icon name="chevron-right" size={14} />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function AnalyzingScreen({ mode, inputVal, opts, onDone, onError }) {
+  const [step, setStep] = useState(0);
+  const [statusMsg, setStatusMsg] = useState('Iniciando análisis...');
+  const steps = [
+    { label: mode === 'url' ? 'Cargando página' : 'Procesando contenido', icon: 'globe' },
+    { label: 'Analizando SEO', icon: 'search' },
+    { label: 'Evaluando GEO', icon: 'sparkles' },
+    { label: 'Generando resultados', icon: 'zap' },
+  ];
+
+  useEffect(() => {
+    let cancelled = false;
+    const type = (mode === 'keyword') ? 'keywords' : mode;
+
+    const doAnalysis = async () => {
+      try {
+        // Animate steps while waiting
+        for (let i = 0; i < steps.length; i++) {
+          if (cancelled) return;
+          setStep(i);
+          setStatusMsg(steps[i].label + '...');
+          await new Promise(r => setTimeout(r, 600));
+        }
+        const data = await runAnalysis(type, inputVal, opts || {});
+        if (!cancelled) {
+          setStep(steps.length);
+          setStatusMsg('¡Listo!');
+          await new Promise(r => setTimeout(r, 300));
+          onDone(data);
+        }
+      } catch (e) {
+        if (!cancelled) onError(e.message || 'Error en el análisis');
+      }
+    };
+
+    doAnalysis();
+    return () => { cancelled = true; };
+  }, []);
+
+  const pct = Math.min(100, Math.round(((step + 0.5) / steps.length) * 100));
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%' }}>
+      <div style={{ textAlign: 'center', maxWidth: 400, padding: 40 }}>
+        <div style={{ position: 'relative', width: 80, height: 80, margin: '0 auto 28px' }}>
+          <svg width="80" height="80" viewBox="0 0 80 80" style={{ transform: 'rotate(-90deg)' }}>
+            <circle cx="40" cy="40" r="34" fill="none" stroke="var(--border)" strokeWidth="6" />
+            <circle cx="40" cy="40" r="34" fill="none" stroke="var(--seo)" strokeWidth="6"
+              strokeDasharray={2 * Math.PI * 34}
+              strokeDashoffset={2 * Math.PI * 34 * (1 - pct / 100)}
+              strokeLinecap="round" style={{ transition: 'stroke-dashoffset 0.5s ease' }} />
+          </svg>
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, fontWeight: 700, color: 'var(--seo)' }}>
+            {pct}%
+          </div>
+        </div>
+        <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 8 }}>{statusMsg}</div>
+        <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--muted)', marginBottom: 24 }}>
+          {mode === 'url' ? inputVal : mode === 'keyword' ? '"' + inputVal + '"' : 'Texto personalizado'}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {steps.map((s, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', borderRadius: 'var(--r-sm)', background: i < step ? 'var(--good-soft)' : i === step ? 'var(--seo-soft)' : 'var(--bg-2)', transition: 'all 0.3s' }}>
+              <span style={{ color: i < step ? 'var(--good)' : i === step ? 'var(--seo)' : 'var(--faint)' }}>
+                <Icon name={i < step ? 'check' : s.icon} size={14} />
+              </span>
+              <span style={{ fontSize: 'var(--fs-sm)', color: i < step ? 'var(--ink-2)' : i === step ? 'var(--seo-ink)' : 'var(--muted)', fontWeight: i === step ? 600 : 400 }}>{s.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ===================== DASHBOARD =====================
+function SectionTitle({ children, sub }) {
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>{children}</h2>
+      {sub && <p style={{ margin: '4px 0 0', fontSize: 'var(--fs-sm)', color: 'var(--muted)' }}>{sub}</p>}
+    </div>
+  );
+}
+
+function Topbar({ data, onNav }) {
+  const T = data.TARGET || {};
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px var(--pad)', borderBottom: '1px solid var(--border)', background: 'var(--surface)', flexShrink: 0 }}>
+      <div style={{ width: 34, height: 34, borderRadius: 8, background: 'var(--seo)', color: 'white', display: 'grid', placeItems: 'center', fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+        {T.favicon || 'S'}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontWeight: 600, fontSize: 'var(--fs-sm)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{T.title || T.url || 'Análisis'}</div>
+        <div style={{ fontSize: 11, color: 'var(--muted)' }}>{T.domain || T.url || ''}{T.fetchedAt ? ' · ' + T.fetchedAt : ''}</div>
+      </div>
+      <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+        <Button variant="secondary" size="sm" icon="bolt" onClick={() => onNav('report')}>Mejoras</Button>
+        <Button variant="ghost" size="sm" icon="refresh" onClick={() => onNav('input')}>Nuevo</Button>
+      </div>
+    </div>
+  );
+}
+
+function LaneScore({ lane, score, label }) {
+  return (
+    <div className="card" style={{ padding: 'var(--pad)', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+      <ScoreRing score={score} size={96} lane={lane} />
+      <div style={{ fontWeight: 600, fontSize: 'var(--fs-sm)' }}>{label}</div>
+      <LaneTag lane={lane} />
+    </div>
+  );
+}
+
+function EngineCard({ engine }) {
+  return (
+    <div className="card" style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ width: 10, height: 10, borderRadius: '50%', background: engine.cited ? 'var(--good)' : engine.mention > 30 ? 'var(--warn)' : 'var(--faint)', flexShrink: 0 }} />
+      <div style={{ flex: 1 }}>
+        <div style={{ fontWeight: 600, fontSize: 'var(--fs-sm)' }}>{engine.name}</div>
+        <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{engine.note}</div>
+      </div>
+      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+        <div style={{ fontWeight: 700, fontSize: 15, color: engine.cited ? 'var(--good)' : 'var(--ink-2)' }}>{engine.mention}%</div>
+        <div style={{ fontSize: 11, color: 'var(--muted)' }}>mención</div>
+      </div>
+    </div>
+  );
+}
+
+function CategoryCard({ cat }) {
+  return (
+    <div className="card" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ flex: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+          <span style={{ fontWeight: 600, fontSize: 'var(--fs-sm)' }}>{cat.label}</span>
+          <LaneTag lane={cat.lane} />
+        </div>
+        <div style={{ height: 6, background: 'var(--border)', borderRadius: 99 }}>
+          <div style={{ height: '100%', width: cat.score + '%', background: laneColor(cat.lane), borderRadius: 99, transition: 'width 0.8s ease' }} />
+        </div>
+      </div>
+      <div style={{ fontWeight: 700, fontSize: 15, color: scoreColor(cat.score), flexShrink: 0 }}>{cat.score}</div>
+    </div>
+  );
+}
+
+function DetailRow({ label, value, mono }) {
+  return (
+    <div>
+      <div style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--ink-2)', fontFamily: mono ? 'var(--font-mono)' : undefined }}>{value}</div>
+    </div>
+  );
+}
+
+function Dashboard({ data, onNav }) {
+  const D = data;
+  const T = D.TARGET || {};
+  const S = D.SCORES || {};
+  const engines = D.ENGINES || [];
+  const cats = D.CATEGORIES || [];
+  const seo = D._rawSeo || {};
+  const geo = D._rawGeo || {};
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <Topbar data={D} onNav={onNav} />
+      <div className="scroll-area" style={{ padding: 'var(--pad)', display: 'flex', flexDirection: 'column', gap: 28 }}>
+        <section>
+          <SectionTitle sub={T.query ? 'Para: "' + T.query + '"' : undefined}>Puntuación global</SectionTitle>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--gap)', maxWidth: 360 }}>
+            <LaneScore lane="seo" score={S.seo || 0} label="SEO Score" />
+            <LaneScore lane="geo" score={S.geo || 0} label="GEO Score" />
+          </div>
+        </section>
+
+        {engines.length > 0 && (
+          <section>
+            <SectionTitle sub="Visibilidad en motores generativos de IA">Presencia en IA</SectionTitle>
+            <div className="stagger" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--gap)' }}>
+              {engines.map(e => <EngineCard key={e.id} engine={e} />)}
+            </div>
+          </section>
+        )}
+
+        {cats.length > 0 && (
+          <section>
+            <SectionTitle>Categorías de análisis</SectionTitle>
+            <div className="stagger" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {cats.map(c => <CategoryCard key={c.id} cat={c} />)}
+            </div>
+          </section>
+        )}
+
+        {(seo.meta_description || seo.title) && (
+          <section>
+            <SectionTitle>Detalles SEO</SectionTitle>
+            <div className="card" style={{ padding: 'var(--pad)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {seo.title && <DetailRow label="Título" value={seo.title} />}
+              {seo.meta_description && <DetailRow label="Meta descripción" value={seo.meta_description} />}
+              {seo.slug && <DetailRow label="Slug sugerido" value={seo.slug} mono />}
+              {seo.focus_keyword && <DetailRow label="Keyword principal" value={seo.focus_keyword} />}
+              {(seo.secondary_keywords || []).length > 0 && (
+                <div>
+                  <div style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>Keywords secundarias</div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {seo.secondary_keywords.map((k, i) => <Pill key={i}>{k}</Pill>)}
+                  </div>
+                </div>
+              )}
+              {(seo.issues || []).length > 0 && (
+                <div>
+                  <div style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>Issues detectados</div>
+                  {seo.issues.map((issue, i) => (
+                    <div key={i} style={{ display: 'flex', gap: 8, padding: '6px 0', borderTop: '1px solid var(--border-2)', alignItems: 'flex-start' }}>
+                      <span style={{ color: 'var(--warn)', marginTop: 2 }}><Icon name="info" size={13} /></span>
+                      <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--ink-2)' }}>{issue}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {geo.ai_snippet && (
+          <section>
+            <SectionTitle>Detalles GEO</SectionTitle>
+            <div className="card" style={{ padding: 'var(--pad)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div>
+                <div style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>AI Snippet sugerido</div>
+                <div style={{ padding: '10px 14px', background: 'var(--geo-soft)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-sm)', color: 'var(--geo-ink)', lineHeight: 1.6 }}>{geo.ai_snippet}</div>
+              </div>
+              {geo.answer_ready_summary && <DetailRow label="Resumen directo" value={geo.answer_ready_summary} />}
+              {geo.citation_likelihood && <DetailRow label="Probabilidad de citación" value={geo.citation_likelihood} />}
+              {(geo.entity_coverage || []).length > 0 && (
+                <div>
+                  <div style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>Entidades cubiertas</div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {geo.entity_coverage.map((e, i) => <Pill key={i} color="var(--geo-ink)" bg="var(--geo-soft)">{e}</Pill>)}
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        <div style={{ height: 20 }} />
+      </div>
+    </div>
+  );
+}
+
+// ===================== REPORT =====================
+function SuggestionCard({ s }) {
+  const [open, setOpen] = useState(false);
+  const impactColor = s.impact >= 12 ? 'var(--good)' : s.impact >= 6 ? 'var(--warn)' : 'var(--muted)';
+  const priBg = s.priority === 'Quick win' ? 'var(--good-soft)' : s.priority === 'Alto impacto' ? 'var(--warn-soft)' : 'var(--bg-2)';
+  const priColor = s.priority === 'Quick win' ? 'var(--good)' : s.priority === 'Alto impacto' ? 'var(--warn)' : 'var(--muted)';
+  return (
+    <div className="card" style={{ overflow: 'hidden' }}>
+      <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer' }} onClick={() => setOpen(o => !o)}>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4, flexWrap: 'wrap' }}>
+            <LaneTag lane={s.lane} />
+            <Pill style={{ background: priBg, color: priColor }}>{s.priority}</Pill>
+            <Pill>Esfuerzo: {s.effort}</Pill>
+          </div>
+          <div style={{ fontWeight: 600, fontSize: 'var(--fs-sm)', marginBottom: 4 }}>{s.title}</div>
+          <div style={{ fontSize: 11, color: 'var(--muted)' }}>{s.desc}</div>
+        </div>
+        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: 15, color: impactColor }}>+{s.impact}</div>
+          <div style={{ fontSize: 11, color: 'var(--muted)' }}>puntos</div>
+        </div>
+        <div style={{ marginTop: 2, color: 'var(--muted)', transform: open ? 'rotate(90deg)' : 'none', transition: 'transform 0.2s' }}>
+          <Icon name="chevron-right" size={14} />
+        </div>
+      </div>
+      {open && (s.editsBlock || s.addsBlock) && (
+        <div style={{ borderTop: '1px solid var(--border)', padding: '12px 16px', background: 'var(--bg)' }}>
+          <div style={{ fontSize: 'var(--fs-xs)', fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8 }}>Ejemplo de mejora</div>
+          <div style={{ padding: '10px 14px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 'var(--r-sm)', fontSize: 'var(--fs-sm)', lineHeight: 1.6 }}>
+            {(s.editsBlock || s.addsBlock).text}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Report({ data, onNav, onLoadSuggestions }) {
+  const D = data;
+  const [loadingImps, setLoadingImps] = useState(false);
+  const suggestions = D.SUGGESTIONS || [];
+
+  useEffect(() => {
+    if (suggestions.length === 0 && onLoadSuggestions) {
+      setLoadingImps(true);
+      Promise.resolve(onLoadSuggestions()).finally(() => setLoadingImps(false));
+    }
+  }, []);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px var(--pad)', borderBottom: '1px solid var(--border)', background: 'var(--surface)', flexShrink: 0 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 700, fontSize: 16 }}>Plan de mejoras</div>
+          <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--muted)' }}>{D.TARGET && (D.TARGET.title || D.TARGET.url)}</div>
+        </div>
+        <Button variant="secondary" size="sm" icon="arrow-right" onClick={() => onNav('dashboard')}>Ver resultados</Button>
+      </div>
+      <div className="scroll-area" style={{ padding: 'var(--pad)' }}>
+        {loadingImps ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--muted)' }}>
+              <svg width="40" height="40" viewBox="0 0 40 40" style={{ animation: 'spin 1s linear infinite', display: 'block', margin: '0 auto 16px' }}>
+                <circle cx="20" cy="20" r="16" fill="none" stroke="var(--border)" strokeWidth="4" />
+                <circle cx="20" cy="20" r="16" fill="none" stroke="var(--seo)" strokeWidth="4" strokeDasharray="30 70" strokeLinecap="round" />
+              </svg>
+              <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink-2)', marginBottom: 6 }}>Generando plan de mejora...</div>
+              <div style={{ fontSize: 'var(--fs-sm)' }}>Analizando oportunidades SEO y GEO</div>
+            </div>
+            {[1,2,3].map(i => (
+              <div key={i} className="card" style={{ padding: 'var(--pad)', opacity: 0.4 + i * 0.1 }}>
+                <div style={{ height: 14, background: 'var(--bg-2)', borderRadius: 6, width: '60%', marginBottom: 8 }} />
+                <div style={{ height: 11, background: 'var(--bg-2)', borderRadius: 6, width: '90%', marginBottom: 6 }} />
+                <div style={{ height: 11, background: 'var(--bg-2)', borderRadius: 6, width: '70%' }} />
+              </div>
+            ))}
+          </div>
+        ) : suggestions.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--muted)' }}>
+            <Icon name="zap" size={32} />
+            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--ink-2)', marginTop: 12, marginBottom: 8 }}>No hay mejoras disponibles</div>
+            <div style={{ fontSize: 'var(--fs-sm)', marginBottom: 20 }}>Primero realiza un análisis desde "Nuevo análisis"</div>
+            <Button icon="plus" onClick={() => onNav('input')}>Nuevo análisis</Button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+              <Icon name="zap" size={14} />
+              <span style={{ fontSize: 'var(--fs-sm)', color: 'var(--muted)' }}>{suggestions.length} mejoras identificadas</span>
+            </div>
+            {suggestions.map(s => <SuggestionCard key={s.id} s={s} />)}
+            <div style={{ height: 20 }} />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ===================== KEYWORD REPORT =====================
+function KeywordReport({ data, onNav }) {
+  const KW = data.KEYWORD || {};
+  const related = KW.related || [];
+  const engines = KW.engines || [];
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px var(--pad)', borderBottom: '1px solid var(--border)', background: 'var(--surface)', flexShrink: 0 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 700, fontSize: 16 }}>Análisis de keyword</div>
+          <div style={{ fontSize: 'var(--fs-sm)', color: 'var(--muted)' }}>{KW.query || ''}</div>
+        </div>
+        <Button variant="ghost" size="sm" icon="refresh" onClick={() => onNav('input')}>Nuevo</Button>
+      </div>
+      <div className="scroll-area" style={{ padding: 'var(--pad)', display: 'flex', flexDirection: 'column', gap: 24 }}>
+        <div className="card" style={{ padding: 'var(--pad)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div>
+              <div style={{ fontSize: 'var(--fs-xs)', color: 'var(--muted)', fontWeight: 600, textTransform: 'uppercase', marginBottom: 4 }}>Keyword</div>
+              <div style={{ fontSize: 20, fontWeight: 700 }}>{KW.query || '—'}</div>
+            </div>
+            <div style={{ marginLeft: 'auto' }}>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 2 }}>Intención</div>
+              <Pill>{KW.intent || 'Informativa'}</Pill>
+            </div>
+          </div>
+        </div>
+
+        {engines.length > 0 && (
+          <section>
+            <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, marginBottom: 10 }}>Presencia en IA</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+              {engines.map(e => (
+                <div key={e.id} className="card" style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <BrandBadge name={e.name} color={e.present ? 'var(--good)' : 'var(--faint)'} size={28} />
+                  <div>
+                    <div style={{ fontWeight: 600, fontSize: 'var(--fs-sm)' }}>{e.name}</div>
+                    <div style={{ fontSize: 11, color: e.present ? 'var(--good)' : 'var(--muted)' }}>{e.present ? 'Citado' : 'No detectado'}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {related.length > 0 && (
+          <section>
+            <div style={{ fontSize: 'var(--fs-sm)', fontWeight: 600, marginBottom: 10 }}>Keywords relacionadas</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {related.map((r, i) => (
+                <div key={i} className="card" style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 500, fontSize: 'var(--fs-sm)' }}>{r.q}</div>
+                    {r.angle && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{r.angle}</div>}
+                  </div>
+                  <Pill>{r.intent || 'Informativa'}</Pill>
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+        <div style={{ height: 20 }} />
+      </div>
+    </div>
+  );
+}
+
+// ===================== HISTORY SCREEN =====================
+function HistoryScreen({ onOpenAnalysis, onNav }) {
+  const [items, setItems] = useState((window.SURFACE_DATA && window.SURFACE_DATA.HISTORY) || []);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    setLoading(true);
+    loadRecents(50).then(list => {
+      const history = list.map(i => ({
+        id: i.id, target: i.title,
+        mode: i.type === 'url' ? 'URL' : i.type === 'text' ? 'Texto' : 'Keyword',
+        seo: i.seo_score || 0, geo: i.geo_score || 0,
+        when: formatRelativeTime(i.created_at), type: i.type,
+      }));
+      setItems(history);
+      if (window.SURFACE_DATA) window.SURFACE_DATA.HISTORY = history;
+    }).catch(() => {}).finally(() => setLoading(false));
+  }, []);
+
+  const iconFor = (type) => type === 'url' ? 'globe' : type === 'text' ? 'file' : 'search';
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div style={{ padding: '12px var(--pad)', borderBottom: '1px solid var(--border)', background: 'var(--surface)', flexShrink: 0 }}>
+        <div style={{ fontWeight: 700, fontSize: 16 }}>Historial de análisis</div>
+      </div>
+      <div className="scroll-area" style={{ padding: 'var(--pad)' }}>
+        {loading ? (
+          <div style={{ textAlign: 'center', padding: 40, color: 'var(--muted)' }}>Cargando historial...</div>
+        ) : items.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: 60, color: 'var(--muted)' }}>
+            <Icon name="clock" size={32} />
+            <div style={{ marginTop: 12, fontWeight: 600, color: 'var(--ink-2)' }}>Sin análisis previos</div>
+            <div style={{ marginTop: 6, fontSize: 'var(--fs-sm)', marginBottom: 20 }}>Empieza analizando tu primera URL o contenido</div>
+            <Button icon="plus" onClick={() => onNav('input')}>Nuevo análisis</Button>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {items.map(item => (
+              <div key={item.id} className="card" style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, cursor: 'pointer' }}
+                onClick={() => onOpenAnalysis(item.id)}>
+                <div style={{ width: 34, height: 34, borderRadius: 8, background: 'var(--bg-2)', display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+                  <Icon name={iconFor(item.type)} size={16} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 500, fontSize: 'var(--fs-sm)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.target || 'Sin título'}</div>
+                  <div style={{ fontSize: 11, color: 'var(--muted)' }}>{item.mode} · {item.when}</div>
+                </div>
+                {item.seo > 0 && (
+                  <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                    <Pill color="var(--seo-ink)" bg="var(--seo-soft)">SEO {item.seo}</Pill>
+                    <Pill color="var(--geo-ink)" bg="var(--geo-soft)">GEO {item.geo}</Pill>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ===================== SETTINGS =====================
+function SettingsScreen() {
+  const [apiKey, setApiKey] = useState(localStorage.getItem('sg_api_key') || '');
+  const [saved, setSaved] = useState(false);
+
+  const save = () => {
+    if (apiKey.trim()) localStorage.setItem('sg_api_key', apiKey.trim());
+    else localStorage.removeItem('sg_api_key');
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
+  return (
+    <div style={{ padding: 'var(--pad)', maxWidth: 480 }}>
+      <h2 style={{ marginTop: 0, fontSize: 18, fontWeight: 700 }}>Ajustes</h2>
+      <div className="card" style={{ padding: 'var(--pad)' }}>
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: 'block', fontSize: 'var(--fs-sm)', fontWeight: 600, marginBottom: 6 }}>API Key</label>
+          <input value={apiKey} onChange={e => setApiKey(e.target.value)} placeholder="sg_live_..." type="password"
+            style={{ width: '100%', padding: '10px 14px', border: '1.5px solid var(--border)', borderRadius: 'var(--r-md)', fontSize: 'var(--fs-base)', background: 'var(--bg)', color: 'var(--ink)', outline: 'none' }} />
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>Se guarda en localStorage del navegador</div>
+        </div>
+        <Button onClick={save}>{saved ? '¡Guardado!' : 'Guardar'}</Button>
+      </div>
+    </div>
+  );
+}
+
+// ===================== COMPETITORS =====================
+function CompetitorsScreen({ onNav }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', flexDirection: 'column', gap: 16, color: 'var(--muted)' }}>
+      <Icon name="compare" size={40} />
+      <div style={{ fontWeight: 600, color: 'var(--ink-2)', fontSize: 18 }}>Análisis de competencia</div>
+      <div style={{ fontSize: 'var(--fs-sm)', textAlign: 'center', maxWidth: 300 }}>Esta funcionalidad estará disponible próximamente</div>
+      <Button variant="secondary" icon="plus" onClick={() => onNav('input')}>Nuevo análisis</Button>
+    </div>
+  );
+}
+
+// ===================== MAIN APP =====================
+const TWEAK_DEFAULTS = {
+  theme: 'light',
+  font: 'Geist',
+  density: 'regular',
+  scorecard: 'ring',
+  accent: 'oklch(0.67 0.18 45)',
+};
+
+function App() {
+  const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const [screen, setScreen] = useState('input');
+  const [mode, setMode] = useState('url');
+  const [analysisError, setAnalysisError] = useState(null);
+  const [pendingInput, setPendingInput] = useState(null);
+  const [loadingImps, setLoadingImps] = useState(false);
+  const [dataKey, setDataKey] = useState(0);
+
+  useEffect(() => {
+    const theme = t.theme === 'auto'
+      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      : t.theme;
+    document.documentElement.setAttribute('data-theme', theme);
+    const density = t.density === 'regular' ? '' : t.density;
+    document.documentElement.setAttribute('data-density', density);
+    const fontVal = t.font === 'system-ui' ? 'system-ui' : '"' + t.font + '", system-ui, sans-serif';
+    document.body.style.setProperty('--font-ui', fontVal);
+    document.documentElement.style.setProperty('--accent', t.accent);
+  }, [t.theme, t.density, t.font, t.accent]);
+
+  useEffect(() => {
+    if (screen === 'input' || screen === 'history') {
+      loadRecents().then(items => {
+        const history = items.map(i => ({
+          id: i.id, target: i.title,
+          mode: i.type === 'url' ? 'URL' : i.type === 'text' ? 'Texto' : 'Keyword',
+          seo: i.seo_score || 0, geo: i.geo_score || 0,
+          when: formatRelativeTime(i.created_at), type: i.type,
+        }));
+        if (!window.SURFACE_DATA) window.SURFACE_DATA = {};
+        window.SURFACE_DATA.HISTORY = history;
+        setDataKey(k => k + 1);
+      }).catch(() => {});
+    }
+  }, [screen]);
+
+  const nav = (id) => {
+    if (id === 'dashboard') {
+      setScreen((mode === 'keyword' || mode === 'keywords') ? 'keyword' : 'dashboard');
+    } else {
+      setScreen(id);
+    }
+  };
+
+  const startAnalyze = (m, val, opts) => {
+    if (m === '__open__') { openSavedAnalysis(val); return; }
+    setMode(m);
+    setPendingInput({ mode: m, val, opts: opts || {} });
+    setAnalysisError(null);
+    setScreen('analyzing');
+  };
+
+  const openSavedAnalysis = async (id) => {
+    try {
+      const data = await loadAnalysis(id);
+      const m = data.type;
+      const input = data.input_data || {};
+      setMode(m);
+      populateSurfaceData(
+        m,
+        m === 'url' ? input.url : (input.text || ''),
+        { language: input.language, keyword: input.target_keyword, url: input.url, text: input.text },
+        { analysis_id: data.id, result: data.result }
+      );
+      window.SURFACE_DATA.SUGGESTIONS = [];
+      setDataKey(k => k + 1);
+      setScreen((m === 'keyword' || m === 'keywords') ? 'keyword' : 'dashboard');
+    } catch (e) {
+      alert('Error cargando análisis: ' + e.message);
+    }
+  };
+
+  const handleAnalysisDone = (data) => {
+    const { mode: m, val, opts } = pendingInput || {};
+    populateSurfaceData(m, val, opts || {}, data);
+    window.SURFACE_DATA.SUGGESTIONS = [];
+    setDataKey(k => k + 1);
+    setScreen((m === 'keyword' || m === 'keywords') ? 'keyword' : 'dashboard');
+  };
+
+  const handleLoadSuggestions = async () => {
+    const id = window.SURFACE_DATA && window.SURFACE_DATA._analysisId;
+    if (!id || loadingImps) return;
+    setLoadingImps(true);
+    try {
+      const imps = await loadImprovements(id);
+      window.SURFACE_DATA.SUGGESTIONS = mapImprovements(imps.improvements, window.SURFACE_DATA.CONTENT);
+      setDataKey(k => k + 1);
+    } catch (e) {
+      console.error('Error loading improvements:', e);
+    } finally {
+      setLoadingImps(false);
+    }
+  };
+
+  const D = window.SURFACE_DATA || {};
+
+  const activeNav = screen === 'analyzing' ? 'input'
+    : screen === 'keyword' ? 'dashboard'
+    : screen;
+
+  const renderMain = () => {
+    if (screen === 'analyzing' && pendingInput) {
+      return (
+        <AnalyzingScreen
+          mode={pendingInput.mode}
+          inputVal={pendingInput.val}
+          opts={pendingInput.opts}
+          onDone={handleAnalysisDone}
+          onError={(msg) => { setAnalysisError(msg); setScreen('input'); }}
+        />
+      );
+    }
+    if (screen === 'dashboard') return <Dashboard key={dataKey} data={D} onNav={nav} />;
+    if (screen === 'report') return <Report key={dataKey} data={D} onNav={nav} onLoadSuggestions={handleLoadSuggestions} />;
+    if (screen === 'keyword') return <KeywordReport key={dataKey} data={D} onNav={nav} />;
+    if (screen === 'history') return <HistoryScreen key={dataKey} onOpenAnalysis={openSavedAnalysis} onNav={nav} />;
+    if (screen === 'settings') return <SettingsScreen />;
+    if (screen === 'competitors') return <CompetitorsScreen onNav={nav} />;
+    // default: input
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+        {analysisError && (
+          <div style={{ padding: '10px 16px', background: 'var(--poor-soft)', color: 'var(--poor)', fontSize: 'var(--fs-sm)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>Error: {analysisError}</span>
+            <button onClick={() => setAnalysisError(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--poor)', fontSize: 18 }}>×</button>
+          </div>
+        )}
+        <div className="scroll-area">
+          <InputScreen key={dataKey} onAnalyze={startAnalyze} />
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="app-shell">
+      <Sidebar active={activeNav} onNav={nav} />
+      <div className="main-col">
+        {renderMain()}
+      </div>
+      <TweaksPanel t={t} setTweak={setTweak} />
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>

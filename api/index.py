@@ -1,15 +1,13 @@
 """
-api/index.py — SEO & GEO API
-Punto de entrada para Vercel (detecta automáticamente este archivo).
+api/index.py — SEO & GEO API  (Python 3.10+ required)
+Entrypoint para Vercel.
 
 Endpoints:
-  POST /analyze/seo        → Metadata SEO completa
-  POST /analyze/geo        → Análisis GEO para LLMs
-  POST /analyze/full       → SEO + GEO combinado
-  POST /keywords           → Keyword research con intención + potencial GEO
-  POST /schema             → Generador de JSON-LD / structured data
-  POST /analyze/url        → Scraping + análisis SEO+GEO desde URL
-  GET  /health             → Health check (sin auth, para RapidAPI)
+  POST /analyze/seo  · POST /analyze/geo  · POST /analyze/full
+  POST /analyze/url  · POST /keywords     · POST /schema
+  POST /v2/analyze   · GET  /v2/analyses  · GET  /v2/analyses/{id}
+  DELETE /v2/analyses/{id}  · POST /v2/analyses/{id}/improvements
+  GET  /app          · GET  /health
 """
 import json
 import logging
@@ -33,9 +31,15 @@ from core.models import (
     TextInput, UrlInput, TextInputBody, UrlInputBody,
     SeoMetadata, GeoAnalysis, FullAnalysis,
     KeywordResearchOutput, SchemaOutput,
+    ImproveBody, ImproveOutput,
     ErrorResponse,
+    V2AnalyzeBody, V2AnalysisResponse, AnalysisSummary, AnalysisDetail,
+    ImprovementsOutput, ImprovementItem,
 )
-from core.prompts import SEO_SYSTEM, GEO_SYSTEM, KEYWORD_SYSTEM, SCHEMA_SYSTEM
+from core.prompts import SEO_SYSTEM, GEO_SYSTEM, KEYWORD_SYSTEM, SCHEMA_SYSTEM, IMPROVEMENTS_SYSTEM
+from core.db import init_db, save_analysis, list_analyses, get_analysis, delete_analysis, get_cached_improvements, save_improvements
+
+IMPROVE_SYSTEM = """Eres un experto en SEO y GEO (Generative Engine Optimization). Mejoras textos aplicando instrucciones específicas para optimizarlos tanto para Google como para aparecer en respuestas de ChatGPT, Gemini y Perplexity. Mantienes siempre el tono, estilo y longitud similar al original."""
 
 
 def _merge_text_input(
@@ -128,6 +132,11 @@ app.add_middleware(
 )
 
 
+@app.on_event("startup")
+async def _startup():
+    await init_db()
+
+
 # ── Middleware de logging ──────────────────────────────────────────────────────
 
 @app.middleware("http")
@@ -197,6 +206,60 @@ async def debug_keys():
     raw = os.environ.get("API_KEYS", "VACÍO")
     keys = [k.strip() for k in raw.split(",") if k.strip()]
     return {"raw_length": len(raw), "num_keys": len(keys), "keys_preview": [k[:8]+"…" for k in keys]}
+
+
+@app.post(
+    "/improve",
+    response_model=ImproveOutput,
+    tags=["Tools"],
+    summary="Mejora el texto aplicando sugerencias SEO/GEO seleccionadas",
+    responses={401: {"model": ErrorResponse}, 422: {"model": ErrorResponse}, 502: {"model": ErrorResponse}},
+)
+@limiter.limit(get_limit)
+async def improve_content(
+    request: Request,
+    body: ImproveBody | None = None,
+    _key: str = Depends(verify_key),
+):
+    """
+    Reescribe el texto original aplicando las mejoras SEO/GEO seleccionadas.
+    Recibe el texto y una lista de instrucciones de mejora; devuelve el texto mejorado
+    y la lista de cambios realizados.
+    """
+    text_val = (body.text or body.content) if body else None
+    improvements_val = (body.improvements or []) if body else []
+    language_val = (body.language if body else None) or "es"
+
+    if not text_val:
+        raise HTTPException(status_code=422, detail="Se requiere 'text' en el body JSON.")
+    if not improvements_val:
+        raise HTTPException(status_code=422, detail="Se requiere al menos una mejora en 'improvements'.")
+
+    improvements_str = "\n".join(f"- {i}" for i in improvements_val)
+    prompt = f"""Texto original:
+---
+{text_val}
+---
+
+Mejoras a aplicar (aplícalas TODAS):
+{improvements_str}
+
+Idioma: {language_val}
+
+Instrucciones:
+1. Reescribe el texto completo aplicando todas las mejoras listadas
+2. Mantén el tono, estilo y extensión similar al original
+3. Solo añade información nueva cuando la mejora lo pida explícitamente
+4. Si se pide añadir un snippet, ponlo como primer párrafo
+5. Si se pide incorporar entidades, menciónalas de forma natural con una frase de contexto
+6. Si se pide integrar keywords, hazlo de forma fluida sin forzarlas
+
+Devuelve ÚNICAMENTE un JSON válido con:
+- improved_text: string con el texto completo mejorado
+- changes_made: array de strings describiendo brevemente cada cambio realizado"""
+
+    raw = await generate(IMPROVE_SYSTEM, prompt)
+    return _parse_json(raw, ImproveOutput)
 
 
 @app.get("/playground", response_class=HTMLResponse, include_in_schema=False)
@@ -463,6 +526,238 @@ async def generate_schema(
     prompt = _build_content_prompt(data)
     raw = await generate(SCHEMA_SYSTEM, prompt)
     return _parse_json(raw, SchemaOutput)
+
+
+# ── App UI ────────────────────────────────────────────────────────────────────
+
+@app.get("/app", response_class=HTMLResponse, include_in_schema=False)
+async def serve_app():
+    """SEO & GEO Optimizer — aplicación web."""
+    html_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "app.html")
+    with open(html_path, "r", encoding="utf-8") as f:
+        return f.read()
+
+
+# ── V2 API ────────────────────────────────────────────────────────────────────
+
+async def _run_full_analysis(type_: str, input_data: dict) -> dict:
+    """Runs SEO+GEO (or keywords) analysis and returns a serializable dict."""
+    import asyncio
+
+    if type_ == "keywords":
+        text = input_data.get("text", "")
+        language = input_data.get("language", "es")
+        prompt = f"Tema/keyword semilla: {text}\nIdioma: {language}"
+        raw = await generate(KEYWORD_SYSTEM, prompt)
+        result = _parse_json(raw, KeywordResearchOutput)
+        return result.model_dump()
+
+    if type_ == "url":
+        url_str = input_data.get("url", "")
+        fetched_text = await fetch_url_text(url_str)
+        text_body = TextInput(
+            text=fetched_text,
+            url=url_str,
+            language=input_data.get("language", "es"),
+            target_keyword=input_data.get("target_keyword"),
+        )
+    else:
+        text_body = TextInput(
+            text=input_data.get("text", ""),
+            url=input_data.get("url"),
+            language=input_data.get("language", "es"),
+            target_keyword=input_data.get("target_keyword"),
+        )
+
+    prompt = _build_content_prompt(text_body)
+    seo_raw, geo_raw = await asyncio.gather(
+        generate(SEO_SYSTEM, prompt),
+        generate(GEO_SYSTEM, prompt),
+    )
+    seo = _parse_json(seo_raw, SeoMetadata)
+    geo = _parse_json(geo_raw, GeoAnalysis)
+    return FullAnalysis(seo=seo, geo=geo).model_dump()
+
+
+@app.post(
+    "/v2/analyze",
+    response_model=V2AnalysisResponse,
+    tags=["V2"],
+    summary="Analiza y persiste (URL, texto o keywords)",
+    responses={401: {"model": ErrorResponse}, 422: {"model": ErrorResponse}, 502: {"model": ErrorResponse}},
+)
+@limiter.limit(get_limit)
+async def v2_analyze(
+    request: Request,
+    body: V2AnalyzeBody | None = None,
+    _key: str = Depends(verify_key),
+):
+    """
+    Ejecuta un análisis SEO+GEO (o keyword research) y lo persiste en la base de datos.
+
+    - **type=url** — scraping automático + análisis completo
+    - **type=text** — análisis de texto pegado directamente
+    - **type=keywords** — keyword research con potencial GEO
+    """
+    if not body:
+        raise HTTPException(status_code=422, detail="Se requiere body JSON con 'type', 'url'/'text' según el tipo.")
+
+    input_data = body.model_dump(exclude={"session_id"})
+    result = await _run_full_analysis(body.type, input_data)
+
+    analysis_id = await save_analysis(
+        type_=body.type,
+        input_data=input_data,
+        result=result,
+        session_id=body.session_id,
+    )
+
+    seo_score = None
+    geo_score = None
+    if body.type != "keywords":
+        seo_score = result.get("seo", {}).get("seo_score")
+        geo_score = result.get("geo", {}).get("geo_score")
+
+    from core.db import _extract_title
+    title = _extract_title(body.type, input_data, result)
+
+    from datetime import datetime
+    return V2AnalysisResponse(
+        analysis_id=analysis_id,
+        type=body.type,
+        title=title,
+        result=result,
+        seo_score=seo_score,
+        geo_score=geo_score,
+        created_at=datetime.utcnow().isoformat(),
+    )
+
+
+@app.get(
+    "/v2/analyses",
+    response_model=list[AnalysisSummary],
+    tags=["V2"],
+    summary="Lista análisis recientes",
+)
+async def v2_list_analyses(
+    session_id: str | None = Query(None, description="Filtra por sesión de navegador"),
+    limit: int = Query(20, ge=1, le=100),
+):
+    rows = await list_analyses(session_id=session_id, limit=limit)
+    return rows
+
+
+@app.get(
+    "/v2/analyses/{analysis_id}",
+    response_model=AnalysisDetail,
+    tags=["V2"],
+    summary="Obtiene un análisis completo",
+    responses={404: {"model": ErrorResponse}},
+)
+async def v2_get_analysis(analysis_id: str):
+    row = await get_analysis(analysis_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Análisis no encontrado.")
+    return row
+
+
+@app.delete(
+    "/v2/analyses/{analysis_id}",
+    tags=["V2"],
+    summary="Elimina un análisis",
+    responses={404: {"model": ErrorResponse}},
+)
+async def v2_delete_analysis(analysis_id: str, _key: str = Depends(verify_key)):
+    deleted = await delete_analysis(analysis_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Análisis no encontrado.")
+    return {"deleted": True}
+
+
+@app.post(
+    "/v2/analyses/{analysis_id}/improvements",
+    response_model=ImprovementsOutput,
+    tags=["V2"],
+    summary="Genera mejoras priorizadas con estimación de impacto en score",
+    responses={404: {"model": ErrorResponse}, 502: {"model": ErrorResponse}},
+)
+@limiter.limit(get_limit)
+async def v2_get_improvements(
+    request: Request,
+    analysis_id: str,
+    _key: str = Depends(verify_key),
+):
+    """
+    Genera una lista de mejoras concretas y priorizadas para el análisis indicado.
+
+    Cada mejora incluye:
+    - Elemento específico a mejorar (title_tag, meta_description, ai_snippet, etc.)
+    - Problema actual y acción recomendada con ejemplo
+    - Estimación de puntos SEO y GEO ganados
+    - Esfuerzo estimado: quick (<1h), medium (1-4h), involved (>4h)
+
+    Los resultados se cachean en base de datos para evitar llamadas repetidas.
+    """
+    cached = await get_cached_improvements(analysis_id)
+    if cached:
+        return ImprovementsOutput(analysis_id=analysis_id, **cached)
+
+    row = await get_analysis(analysis_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Análisis no encontrado.")
+
+    result = row["result"]
+    input_data = row["input_data"]
+    type_ = row["type"]
+
+    prompt_parts = [f"Tipo de análisis: {type_}"]
+    if type_ == "url":
+        prompt_parts.append(f"URL analizada: {input_data.get('url', '')}")
+    elif type_ == "text":
+        text_preview = (input_data.get("text", "")[:400] + "…") if len(input_data.get("text", "")) > 400 else input_data.get("text", "")
+        prompt_parts.append(f"Texto analizado (extracto):\n{text_preview}")
+    else:
+        prompt_parts.append(f"Keyword semilla: {input_data.get('text', '')}")
+
+    if type_ != "keywords":
+        seo = result.get("seo", {})
+        geo = result.get("geo", {})
+        prompt_parts.append(f"""
+Scores actuales: SEO={seo.get('seo_score', '?')}/100, GEO={geo.get('geo_score', '?')}/100
+
+SEO — Issues detectados: {seo.get('issues', [])}
+SEO — Sugerencias actuales: {seo.get('suggestions', [])}
+SEO — Title actual: "{seo.get('title', '')}"
+SEO — Meta actual: "{seo.get('meta_description', '')}"
+SEO — Focus keyword: "{seo.get('focus_keyword', '')}"
+SEO — Legibilidad: {seo.get('readability_score', '')}
+
+GEO — AI Snippet: "{geo.get('ai_snippet', '')}"
+GEO — Citation likelihood: {geo.get('citation_likelihood', '')}
+GEO — Issues GEO: {geo.get('ai_friendliness_issues', [])}
+GEO — Entidades faltantes: {geo.get('missing_entities', [])}
+GEO — Sugerencias GEO: {geo.get('geo_suggestions', [])}
+""")
+    else:
+        prompt_parts.append(f"""
+Keywords generadas: {[k.get('keyword') for k in result.get('keywords', [])[:10]]}
+Oportunidades de contenido: {result.get('content_gap_opportunities', [])}
+Keywords GEO-first: {result.get('geo_first_keywords', [])}
+""")
+
+    raw = await generate(IMPROVEMENTS_SYSTEM, "\n".join(prompt_parts))
+
+    parsed = _parse_json(raw, ImprovementsOutput)
+    parsed.analysis_id = analysis_id
+
+    improvements_dict = {
+        "improvements": [i.model_dump() for i in parsed.improvements],
+        "total_potential_seo_gain": parsed.total_potential_seo_gain,
+        "total_potential_geo_gain": parsed.total_potential_geo_gain,
+    }
+    await save_improvements(analysis_id, improvements_dict)
+
+    return parsed
 
 
 # ── Dev server ────────────────────────────────────────────────────────────────
