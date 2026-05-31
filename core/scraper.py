@@ -39,22 +39,50 @@ NOISE_TAGS = [
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
 def _extract_text(html: str) -> str:
-    """Extrae el texto visible y limpio del HTML."""
+    """
+    Extrae el texto visible y limpio del HTML preservando la estructura
+    de párrafos/encabezados y uniendo correctamente los textos de los links
+    inline (problema típico en Wikipedia y wikis similares).
+
+    Usa get_text(separator=" ") dentro de cada bloque para que el texto de
+    los <a> se junte con el texto circundante sin romper oraciones.
+    """
     soup = BeautifulSoup(html, "html.parser")
 
-    # Eliminar ruido
     for tag in soup(NOISE_TAGS):
         tag.decompose()
 
-    # Preferir <main> o <article> si existen
     container = soup.find("main") or soup.find("article") or soup.body or soup
 
-    raw = container.get_text(separator="\n", strip=True)
+    blocks = []
+    seen = set()
+    for elem in container.find_all(
+        ["h1", "h2", "h3", "h4", "p", "li", "dt", "dd", "blockquote", "td"]
+    ):
+        # separator=" " joins inline links with surrounding text correctly
+        text = elem.get_text(separator=" ", strip=True)
+        # Normalise whitespace
+        text = re.sub(r"\s+", " ", text).strip()
+        if not text or len(text) < 10:
+            continue
+        # Deduplicate (table-of-contents duplicates heading text)
+        key = text[:60]
+        if key in seen:
+            continue
+        seen.add(key)
 
-    # Comprimir líneas vacías múltiples
-    text = re.sub(r"\n{3,}", "\n\n", raw).strip()
+        tag = elem.name
+        if tag == "h1":
+            blocks.append(f"# {text}")
+        elif tag == "h2":
+            blocks.append(f"## {text}")
+        elif tag in ("h3", "h4"):
+            blocks.append(f"### {text}")
+        else:
+            blocks.append(text)
 
-    return text[:MAX_CHARS]
+    raw = "\n\n".join(blocks)
+    return raw[:MAX_CHARS]
 
 
 # Clases CSS comunes que ocultan visualmente un elemento
