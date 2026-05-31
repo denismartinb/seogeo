@@ -244,38 +244,36 @@ async def fetch_url_content(url: str, want_screenshot: bool = False) -> tuple:
     Los metadatos siempre incluyen h1, h2, title, meta_description, schema, canonical.
     Lanza HTTPException si falla.
     """
-    # ── Firecrawl path (preferred) ────────────────────────────────────────────
-    try:
-        from core.firecrawl import scrape_page, _get_key
-        if _get_key():
-            fc = await scrape_page(url, want_screenshot=want_screenshot)
-            if fc and fc.get("markdown") and len(fc["markdown"]) > 50:
-                # Firecrawl already strips nav/footer/ads — this is what LLMs see
-                text = fc["markdown"][:MAX_CHARS]
-                # Extract structural metadata from Firecrawl's metadata field
-                fc_meta = fc.get("metadata") or {}
-                # Still scrape the raw HTML for structural metadata (h1 hidden detection, etc.)
-                raw_metadata = {}
-                try:
-                    async with httpx.AsyncClient(headers=HEADERS, timeout=TIMEOUT, follow_redirects=True) as client:
-                        resp = await client.get(url)
-                        if "html" in resp.headers.get("content-type", ""):
-                            raw_metadata = _extract_metadata(resp.text)
-                except Exception:
-                    pass
-                # Merge: prefer Firecrawl metadata for title/description, raw for h1 hidden detection
-                metadata = {
-                    **raw_metadata,
-                    "title": fc_meta.get("title") or raw_metadata.get("title", ""),
-                    "meta_description": fc_meta.get("description") or raw_metadata.get("meta_description", ""),
-                    "_source": "firecrawl",
-                    "_screenshot": fc.get("screenshot"),
-                }
-                return text, metadata
-    except Exception:
-        pass  # fall through to BS4
+    # ── Firecrawl (mandatory when key is set, no silent fallback) ───────────────
+    from core.firecrawl import scrape_page as _fc_scrape, _get_key as _fc_key
+    if _fc_key():
+        fc = await _fc_scrape(url, want_screenshot=want_screenshot)
+        if not fc or not fc.get("markdown") or len(fc["markdown"]) < 50:
+            raise HTTPException(
+                status_code=502,
+                detail="Firecrawl no devolvió contenido suficiente para analizar la página.",
+            )
+        text = fc["markdown"][:MAX_CHARS]
+        fc_meta = fc.get("metadata") or {}
+        # Fetch raw HTML only for structural metadata (H1 hidden-class detection, schema)
+        raw_metadata: dict = {}
+        try:
+            async with httpx.AsyncClient(headers=HEADERS, timeout=TIMEOUT, follow_redirects=True) as client:
+                resp = await client.get(url)
+                if "html" in resp.headers.get("content-type", ""):
+                    raw_metadata = _extract_metadata(resp.text)
+        except Exception:
+            pass
+        metadata = {
+            **raw_metadata,
+            "title": fc_meta.get("title") or raw_metadata.get("title", ""),
+            "meta_description": fc_meta.get("description") or raw_metadata.get("meta_description", ""),
+            "_source": "firecrawl",
+            "_screenshot": fc.get("screenshot"),
+        }
+        return text, metadata
 
-    # ── BeautifulSoup fallback ────────────────────────────────────────────────
+    # ── BeautifulSoup fallback (only when FIRECRAWL_API_KEY is not set) ───────
     try:
         async with httpx.AsyncClient(
             headers=HEADERS,
