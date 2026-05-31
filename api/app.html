@@ -1307,6 +1307,7 @@ function InputScreen({ onAnalyze, analysisError }) {
 
           {mode === "text" ? (
             <textarea value={val.startsWith("http") || val.includes(".es") ? "" : val} onChange={(e) => setVal(e.target.value)}
+              onKeyDown={(e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter' && val.trim().length >= 10) { onAnalyze(mode, val.trim(), { language: lang }); } }}
               placeholder={cur.ph} rows={5}
               style={{
                 width: "100%", resize: "vertical", border: "1px solid var(--border)", borderRadius: 12,
@@ -1317,6 +1318,14 @@ function InputScreen({ onAnalyze, analysisError }) {
             <div style={{ display: "flex", alignItems: "center", gap: 10, border: "1px solid var(--border)", borderRadius: 12, padding: "4px 4px 4px 15px", background: "var(--bg)" }}>
               <Icon name="search" size={18} style={{ color: "var(--faint)" }} />
               <input value={val} onChange={(e) => setVal(e.target.value)} placeholder={cur.ph}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    let v = val.trim();
+                    if (!v) return;
+                    if (mode === 'url' && !/^https?:\/\//i.test(v)) v = 'https://' + v;
+                    onAnalyze(mode, v, { language: lang });
+                  }
+                }}
                 style={{ flex: 1, border: "none", outline: "none", background: "transparent", fontSize: 15.5, color: "var(--ink)", padding: "10px 0" }} />
             </div>
           )}
@@ -1363,8 +1372,9 @@ function InputScreen({ onAnalyze, analysisError }) {
             <Button size="lg" iconR="arrow" full
                   disabled={mode === "url" ? !val.trim() : mode === "text" ? val.trim().length < 10 : !val.trim()}
                   onClick={() => {
-                    const v = val.trim();
+                    let v = val.trim();
                     if (!v) return;
+                    if (mode === 'url' && v && !/^https?:\/\//i.test(v)) v = 'https://' + v;
                     onAnalyze(mode, v, { language: lang });
                   }}>Analizar ahora</Button>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--faint)", fontSize: "var(--fs-xs)", whiteSpace: "nowrap" }}>
