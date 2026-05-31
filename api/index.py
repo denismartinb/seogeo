@@ -35,6 +35,7 @@ from core.models import (
     ErrorResponse,
     V2AnalyzeBody, V2AnalysisResponse, AnalysisSummary, AnalysisDetail,
     ImprovementsOutput, ImprovementItem,
+    GenerateBlockBody, GenerateBlockOutput,
 )
 from core.prompts import SEO_SYSTEM, GEO_SYSTEM, KEYWORD_SYSTEM, SCHEMA_SYSTEM, IMPROVEMENTS_SYSTEM
 from core.db import init_db, save_analysis, list_analyses, get_analysis, delete_analysis, get_cached_improvements, save_improvements
@@ -592,7 +593,11 @@ async def _run_full_analysis(type_: str, input_data: dict) -> dict:
     )
     seo = _parse_json(seo_raw, SeoMetadata)
     geo = _parse_json(geo_raw, GeoAnalysis)
-    return FullAnalysis(seo=seo, geo=geo).model_dump()
+    result = FullAnalysis(seo=seo, geo=geo).model_dump()
+    # Attach original text so the frontend can build a real content preview
+    original = fetched_text if type_ == "url" else input_data.get("text", "")
+    result["_original_text"] = original[:8000] if original else ""
+    return result
 
 
 @app.post(
@@ -774,6 +779,64 @@ Keywords GEO-first: {result.get('geo_first_keywords', [])}
     await save_improvements(analysis_id, improvements_dict)
 
     return parsed
+
+
+_BLOCK_SYSTEM = """Eres un experto en SEO y GEO. Generas bloques de contenido específicos para mejorar páginas web.
+El contenido debe ser:
+- Optimizado para búsqueda (keywords naturales, sin forzar)
+- Fácil de citar por IA generativa (respuestas directas, datos concretos, entidades nombradas)
+- Natural y fluido, no robótico
+Devuelve SOLO el contenido del bloque, sin explicaciones ni marcadores de cabecera (##)."""
+
+
+@app.post(
+    "/v2/generate-block",
+    response_model=GenerateBlockOutput,
+    tags=["V2"],
+    summary="Genera contenido específico para una mejora con IA",
+    responses={401: {"model": ErrorResponse}, 422: {"model": ErrorResponse}, 502: {"model": ErrorResponse}},
+)
+@limiter.limit(get_limit)
+async def v2_generate_block(
+    request: Request,
+    body: GenerateBlockBody | None = None,
+    _key: str = Depends(verify_key),
+):
+    """
+    Genera el texto exacto de un bloque de contenido para aplicar una mejora concreta.
+
+    - **paragraph / section** — párrafo o sección nueva (150-400 palabras)
+    - **answer** — respuesta directa citeable por IA (2-4 frases, ≤280 chars)
+    - **faq** — preguntas frecuentes en formato «Pregunta 1 · Pregunta 2 · Pregunta 3»
+    """
+    if not body or not body.instruction:
+        raise HTTPException(status_code=422, detail="Se requiere 'instruction'.")
+
+    block_guides = {
+        "answer": "Escribe un párrafo de 2-4 frases directas y factuales (<280 chars). Debe responder la pregunta inmediatamente.",
+        "faq":    "Escribe 3-5 preguntas frecuentes separadas por ' · '. Solo las preguntas, sin respuestas.",
+        "section":"Escribe una sección completa de 200-400 palabras con entidades nombradas y datos concretos.",
+        "paragraph": "Escribe un párrafo de 100-200 palabras fluido y optimizado para búsqueda.",
+    }
+    guide = block_guides.get(body.block_type or "paragraph", block_guides["paragraph"])
+
+    ctx = (body.original_text or "")[:3000]
+    prompt = f"""Contenido original de la página:
+---
+{ctx if ctx else "(sin contexto)"}
+---
+
+Mejora a aplicar:
+{body.instruction}
+
+Tipo de bloque: {body.block_type or "paragraph"}
+Idioma: {body.language or "es"}
+
+{guide}
+No incluyas marcadores markdown de cabecera. Solo el texto del bloque."""
+
+    raw = await generate(_BLOCK_SYSTEM, prompt)
+    return GenerateBlockOutput(generated_text=raw.strip())
 
 
 # ── Dev server ────────────────────────────────────────────────────────────────

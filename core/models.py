@@ -188,3 +188,16 @@ class ImprovementsOutput(BaseModel):
     improvements: list[ImprovementItem]
     total_potential_seo_gain: int
     total_potential_geo_gain: int
+
+
+# ── Block generator ───────────────────────────────────────────────────────────
+
+class GenerateBlockBody(BaseModel):
+    original_text: Optional[str] = Field(None, description="Texto original de la página")
+    instruction: str = Field(..., description="Instrucción de mejora a aplicar")
+    block_type: Optional[str] = Field("paragraph", description="paragraph | answer | faq | section")
+    language: Optional[str] = Field("es", description="Idioma del contenido")
+
+
+class GenerateBlockOutput(BaseModel):
+    generated_text: str = Field(..., description="Contenido generado listo para insertar")

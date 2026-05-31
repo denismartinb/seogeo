@@ -78,7 +78,7 @@ Para cada mejora devuelve un objeto con estos campos exactos:
   "field": elemento específico (title_tag | meta_description | h1 | word_count | keyword_density | internal_links | schema_markup | content_structure | page_speed | ai_snippet | entity_coverage | answer_format | citation_signals | content_depth | etc.),
   "current_issue": "problema concreto en 1 frase corta",
   "suggestion": "acción específica a realizar en 1-2 frases",
-  "example": "ejemplo del texto/valor mejorado con ≤100 caracteres, o null",
+  "example": "para mejoras de metadata (title, meta, slug, h1): texto ≤120 chars. Para mejoras de contenido que AÑADEN texto (respuesta directa, FAQ, sección): texto completo del bloque ≤500 chars. null si no aplica",
   "estimated_seo_delta": integer 0-15,
   "estimated_geo_delta": integer 0-15,
   "effort": "quick" (≤1h) | "medium" (1-4h) | "involved" (>4h)

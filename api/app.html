@@ -296,12 +296,28 @@ input, textarea, select { font-family: inherit; }
         {id:'citability', lane:'geo', label:'Citabilidad y fuentes', score:geoS, items:'8 señales'},
         {id:'authority', lane:'geo', label:'Autoridad y E-E-A-T', score:Math.min(90,geoS+8), items:'5 señales'},
       ],
-      CONTENT: [
-        ...(seo.title ? [{id:'h1',type:'h1',text:seo.title}] : []),
-        ...(geo.answer_ready_summary ? [{id:'p1',type:'p',text:geo.answer_ready_summary}] : []),
-        ...(geo.ai_snippet ? [{id:'p2',type:'p',text:geo.ai_snippet}] : []),
-        ...(seo.meta_description ? [{id:'p3',type:'p',text:seo.meta_description}] : []),
-      ],
+      CONTENT: (function() {
+        var blocks = [];
+        if (seo.title) blocks.push({id:'h1',type:'h1',text:seo.title});
+        var rawText = (result._original_text || opts.text || (mode!=='url' ? inputVal : ''));
+        if (rawText && rawText.length > 50) {
+          var lines = rawText.split(/\n+/).map(function(l){return l.trim();}).filter(function(l){return l.length>20;});
+          var pCount=0, h2Count=0;
+          lines.slice(0,16).forEach(function(t,i){
+            if(pCount>=7) return;
+            if(t.length<90 && !/[.!?,]$/.test(t) && i>0 && h2Count<3 && t.split(' ').length<12) {
+              blocks.push({id:'h2_'+i,type:'h2',text:t}); h2Count++;
+            } else if(t.length>30) {
+              blocks.push({id:'p'+i,type:'p',text:t.slice(0,600)}); pCount++;
+            }
+          });
+        } else {
+          if(geo.answer_ready_summary) blocks.push({id:'p1',type:'p',text:geo.answer_ready_summary});
+          if(geo.ai_snippet) blocks.push({id:'p2',type:'p',text:geo.ai_snippet});
+          if(seo.meta_description) blocks.push({id:'p3',type:'p',text:seo.meta_description});
+        }
+        return blocks;
+      })(),
       SUGGESTIONS: [],
       GEO_SOV: {share:sovShare, avgPos:sovShare>40?4:sovShare>25?6:9, projPos:Math.max(2,Math.round((sovShare>40?4:6)*0.6)), category:seo.focus_keyword||inputVal||'', rivals:[]},
       DOMAIN: {domain:domain, pagesCrawled:0, seo:seoS, geo:geoS, issues:[], pages:[]},
@@ -332,10 +348,16 @@ input, textarea, select { font-family: inherit; }
       if (imp.example) {
         if (imp.field==='title_tag'||imp.field==='h1') {
           if ((content||[]).find(function(b){return b.id==='h1';})) editsBlock={id:'h1',text:imp.example};
-        } else if (['answer_format','ai_snippet','answer_block','citation_signals'].includes(imp.field)) {
+        } else if (['answer_format','ai_snippet','answer_block','citation_signals','content_depth'].includes(imp.field)) {
           addsBlock={id:'ans-'+imp.id,type:'answer',after:'h1',text:imp.example};
-        } else if (['schema_markup','faq'].includes(imp.field)) {
-          addsBlock={id:'faq-'+imp.id,type:'faq',after:'p1',text:imp.example};
+        } else if (['schema_markup','faq','structured_data'].includes(imp.field)) {
+          addsBlock={id:'faq-'+imp.id,type:'faq',after:((content||[]).find(function(b){return b.type==='p';})||{}).id||'h1',text:imp.example};
+        } else if (['meta_description'].includes(imp.field)) {
+          // meta_description not shown in content preview (it's a <head> tag)
+        } else {
+          // Generic content improvement — add as paragraph after last block
+          var lastBlock=(content||[])[Math.max(0,(content||[]).length-1)];
+          addsBlock={id:'gen-'+imp.id,type:'p',after:(lastBlock||{}).id||'h1',text:imp.example};
         }
       }
       return { id:imp.id, lane:imp.category, title:imp.suggestion, desc:imp.current_issue, impact:impact, effort:effort, priority:priority, kind:(editsBlock||addsBlock)?'content':'global', editsBlock:editsBlock, addsBlock:addsBlock };
@@ -1963,7 +1985,7 @@ function RealPageView({ ids, appliedIds }) {
   );
 }
 
-function SuggestionCard({ s, on, onToggle, applied }) {
+function SuggestionCard({ s, on, onToggle, applied, onGenerate, generating, generated }) {
   const [open, setOpen] = useState(false);
   const lc = laneColor(s.lane);
   const prioColor = s.priority === "Quick win" ? { c: "var(--warn)", s: "var(--warn-soft)" } : s.priority === "Alto impacto" ? { c: "var(--geo-ink)", s: "var(--geo-soft)" } : { c: "var(--muted)", s: "var(--bg-2)" };
@@ -1989,11 +2011,22 @@ function SuggestionCard({ s, on, onToggle, applied }) {
           </div>
           <div style={{ fontWeight: 600, fontSize: "var(--fs-base)", lineHeight: 1.35 }}>{s.title}</div>
           <div style={{ fontSize: "var(--fs-xs)", color: "var(--muted)", marginTop: 3, lineHeight: 1.45 }}>{s.desc}</div>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 9 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, marginTop: 9, flexWrap: "wrap" }}>
             <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: "var(--fs-xs)", fontWeight: 700, color: "var(--good)" }}>
               <Icon name="trend" size={13} stroke={2} /> +{s.impact} pts
             </span>
             <span style={{ fontSize: "var(--fs-xs)", color: "var(--muted)" }}>Esfuerzo: {s.effort}</span>
+            {!s.editsBlock && !s.addsBlock && !applied && onGenerate && (
+              <button onClick={(e) => { e.stopPropagation(); onGenerate(s.id); }}
+                disabled={generating}
+                style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 5, padding: "4px 11px", borderRadius: 8, border: "1px solid " + (generated ? "var(--good)" : lc.c), background: generated ? "var(--good-soft)" : lc.soft, color: generated ? "var(--good)" : lc.ink, fontSize: "var(--fs-xs)", fontWeight: 700, cursor: generating ? "default" : "pointer", opacity: generating ? 0.7 : 1 }}>
+                {generating
+                  ? <><span className="spin" style={{ width:11,height:11,borderRadius:99,border:"2px solid currentColor",borderTopColor:"transparent",display:"inline-block" }} /> Generando…</>
+                  : generated
+                    ? <><Icon name="check" size={11} stroke={3} /> En previsualización</>
+                    : <><Icon name="spark" size={11} stroke={2} /> Generar con IA</>}
+              </button>
+            )}
             {(s.editsBlock || s.addsBlock) && (
               <button onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
                 style={{ marginLeft: "auto", border: "none", background: "none", color: lc.ink, fontSize: "var(--fs-xs)", fontWeight: 600, cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 3 }}>
@@ -2055,6 +2088,24 @@ function exportPlan(items) {
     if (t) md += `\nContenido a aplicar:\n> ${t.text}\n`;
     md += `\n- [ ] Aplicado en el CMS\n\n`;
   });
+  // Append assembled page content (all changes applied)
+  const contentItems = items.filter(s => s.editsBlock || s.addsBlock);
+  if (contentItems.length > 0 && typeof buildBlocks === 'function') {
+    const ids = contentItems.map(s => s.id);
+    const blocks = buildBlocks(ids);
+    md += `\n---\n## Contenido completo con mejoras aplicadas\n\n`;
+    blocks.forEach(b => {
+      if (b.type === 'h1') md += `# ${b.text}\n\n`;
+      else if (b.type === 'h2') md += `## ${b.text}\n\n`;
+      else if (b.type === 'p') md += `${b.text}\n\n`;
+      else if (b.type === 'answer') md += `> ${b.text}\n\n`;
+      else if (b.type === 'faq') {
+        md += `### Preguntas frecuentes\n`;
+        b.text.split(' · ').forEach(q => { md += `- ${q}\n`; });
+        md += `\n`;
+      }
+    });
+  }
   try {
     const blob = new Blob([md], { type: "text/markdown" });
     const a = document.createElement("a");
@@ -2130,6 +2181,41 @@ function CopyBox({ text }) {
 function Report({ scorecard, onLoadSuggestions, loadingImps }) {
   const D = window.SURFACE_DATA;
   const [selected, setSelected] = useState([]);
+  const [generatingId, setGeneratingId] = useState(null);
+  const [generatedIds, setGeneratedIds] = useState([]);
+
+  const handleGenerate = async (id) => {
+    const s = (D.SUGGESTIONS||[]).find(function(x){return x.id===id;});
+    if (!s || generatingId) return;
+    setGeneratingId(id);
+    try {
+      var originalText = (D._rawSeo&&D._rawSeo.title?D._rawSeo.title+'. ':'') + ((D._rawGeo&&D._rawGeo.answer_ready_summary)||'');
+      var blockType = s.lane==='geo' ? (s.title.toLowerCase().includes('faq')||s.title.toLowerCase().includes('pregunta')?'faq':'answer') : 'section';
+      var headers = {'Content-Type':'application/json'};
+      var key = window._APP_KEY || localStorage.getItem('sg_api_key') || '';
+      if(key) headers['x-api-key'] = key;
+      var res = await fetch('/v2/generate-block', {
+        method:'POST', headers:headers,
+        body: JSON.stringify({original_text:originalText, instruction:s.title+': '+s.desc, block_type:blockType, language:'es'})
+      });
+      var data = await res.json();
+      var text = data.generated_text || '';
+      if (text) {
+        var idx = (D.SUGGESTIONS||[]).findIndex(function(x){return x.id===id;});
+        if (idx>=0) {
+          var lastBlock = (D.CONTENT||[])[(D.CONTENT||[]).length-1] || {id:'h1'};
+          D.SUGGESTIONS[idx] = Object.assign({}, D.SUGGESTIONS[idx], {
+            kind:'content',
+            addsBlock:{id:'gen-'+id, type:blockType==='faq'?'faq':blockType==='answer'?'answer':'p', after:lastBlock.id, text:text}
+          });
+          setGeneratedIds(function(prev){return prev.includes(id)?prev:[...prev,id];});
+          setSelected(function(prev){return prev.includes(id)?prev:[...prev,id];});
+        }
+      }
+    } catch(e) { console.error('generate-block error', e); }
+    finally { setGeneratingId(null); }
+  };
+
   // Auto-load improvements when suggestions are empty
   useEffect(() => {
     if (D.SUGGESTIONS && D.SUGGESTIONS.length === 0 && onLoadSuggestions && !loadingImps) {
@@ -2212,7 +2298,7 @@ function Report({ scorecard, onLoadSuggestions, loadingImps }) {
                 </div>
               </div>
             )}
-            {!loadingImps && filtered.map((s) => <SuggestionCard key={s.id} s={s} on={selected.includes(s.id)} onToggle={() => toggle(s.id)} />)}
+            {!loadingImps && filtered.map((s) => <SuggestionCard key={s.id} s={s} on={selected.includes(s.id)} onToggle={() => toggle(s.id)} onGenerate={handleGenerate} generating={generatingId===s.id} generated={generatedIds.includes(s.id)} />)}
             {!loadingImps && filtered.length === 0 && D.SUGGESTIONS.length > 0 && (
               <div style={{ textAlign: "center", padding: 24, color: "var(--faint)", fontSize: "var(--fs-sm)" }}>No hay sugerencias con este filtro.</div>
             )}
