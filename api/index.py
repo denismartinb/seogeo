@@ -28,6 +28,7 @@ from core.llm import generate, GeminiUnavailableError
 from core.rate_limit import limiter, get_limit
 import hashlib
 from core.scraper import fetch_url_text, fetch_url_content, _build_structure_context
+from core.firecrawl import get_screenshot
 from core.db import (
     init_db, save_analysis, list_analyses, get_analysis, delete_analysis,
     get_cached_improvements, save_improvements,
@@ -832,6 +833,28 @@ Keywords GEO-first: {result.get('geo_first_keywords', [])}
     await save_improvements(analysis_id, improvements_dict)
 
     return parsed
+
+
+@app.get(
+    "/v2/screenshot",
+    tags=["V2"],
+    summary="Captura real de una URL via Firecrawl",
+    responses={503: {"model": ErrorResponse}, 502: {"model": ErrorResponse}},
+)
+@limiter.limit(get_limit)
+async def v2_screenshot(
+    request: Request,
+    url: str = Query(..., description="URL completa a capturar"),
+    _key: str = Depends(verify_key),
+):
+    """
+    Devuelve la URL de un screenshot a página completa renderizado por Firecrawl.
+    Requiere FIRECRAWL_API_KEY configurada en las variables de entorno.
+    """
+    if not url.startswith(("http://", "https://")):
+        url = "https://" + url
+    screenshot_url = await get_screenshot(url)
+    return {"screenshot_url": screenshot_url}
 
 
 _BLOCK_SYSTEM = """Eres un experto en SEO y GEO. Generas bloques de contenido específicos para mejorar páginas web.

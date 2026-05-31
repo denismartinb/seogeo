@@ -1972,50 +1972,108 @@ function Pin({ n, s, applied, pos }) {
 
 function RealPageView({ ids, appliedIds }) {
   const D = window.SURFACE_DATA;
-  const pinned = D.SUGGESTIONS.filter((s) => ids.includes(s.id) && PIN_POS[s.id]);
-  const Bar = ({ w, h = 10, mt = 8, c = "var(--border)" }) => <div style={{ width: w, height: h, borderRadius: 5, background: c, marginTop: mt }} />;
+  const [screenshot, setScreenshot] = useState(null);  // url | "loading" | "error:msg" | null
+  const url = D.TARGET && D.TARGET.url ? D.TARGET.url : "";
+
+  useEffect(() => {
+    if (!url || screenshot) return;
+    setScreenshot("loading");
+    var headers = {"Content-Type": "application/json"};
+    var key = window._APP_KEY || localStorage.getItem("sg_api_key") || "";
+    if (key) headers["x-api-key"] = key;
+    fetch("/v2/screenshot?url=" + encodeURIComponent(url.startsWith("http") ? url : "https://" + url), { headers })
+      .then(function(r) { return r.json(); })
+      .then(function(d) { setScreenshot(d.screenshot_url || "error:Sin URL de screenshot"); })
+      .catch(function(e) { setScreenshot("error:" + (e.message || "Error desconocido")); });
+  }, [url]);
+
+  // Map improvement field → approximate vertical position on the page (%)
+  const FIELD_POS = {
+    title_tag: 4, h1: 5, meta_description: 3, og_title: 3,
+    content_structure: 18, direct_answer: 12, answer_format: 12, answer_block: 12,
+    keyword_density: 22, content_depth: 35, content_length: 35,
+    entity_coverage: 40, factual_density: 45, citation_signals: 48,
+    ai_structure: 55, faq: 65, schema_markup: 70, structured_data: 70,
+    internal_links: 75, authority: 30,
+  };
+
+  const pinned = (D.SUGGESTIONS || []).filter(s => ids.includes(s.id));
+
+  const getPinTop = (s) => {
+    const pos = FIELD_POS[s.field || ""] || FIELD_POS[s.id] || 50;
+    return pos;
+  };
+
+  const isLoading = screenshot === "loading";
+  const isError = screenshot && screenshot.startsWith("error:");
+  const errorMsg = isError ? screenshot.slice(6) : "";
+  const imgUrl = screenshot && !isLoading && !isError ? screenshot : null;
+
   return (
-    <div style={{ position: "relative" }}>
+    <div style={{ position: "relative", minHeight: 400 }}>
+      {/* Info bar */}
       <div className="mono" style={{ position: "sticky", top: 0, zIndex: 6, fontSize: 10.5, color: "var(--faint)", background: "var(--surface)", padding: "8px 16px", borderBottom: "1px dashed var(--border-2)", display: "flex", alignItems: "center", gap: 6 }}>
-        <Icon name="info" size={12} /> Captura de la página en vivo (simulada) · los pins marcan dónde se aplica cada cambio
+        <Icon name="info" size={12} />
+        {isLoading
+          ? "Cargando captura real de la página…"
+          : isError
+            ? "No se pudo cargar el snapshot: " + errorMsg
+            : imgUrl
+              ? "Captura real de la página · los pins marcan dónde aplica cada cambio"
+              : "Capturando página con Firecrawl…"}
       </div>
-      {/* stylized page */}
-      <div style={{ position: "relative", padding: "0 0 30px", filter: "saturate(0.9)", opacity: 0.96 }}>
-        {/* nav */}
-        <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "16px 28px", borderBottom: "1px solid var(--border-2)" }}>
-          <div style={{ width: 34, height: 18, borderRadius: 5, background: "var(--faint)" }} />
-          <div style={{ marginLeft: "auto", display: "flex", gap: 16 }}>{[40, 46, 38, 30].map((w, i) => <div key={i} style={{ width: w, height: 8, borderRadius: 4, background: "var(--border)" }} />)}</div>
-        </div>
-        {/* hero */}
-        <div style={{ padding: "34px 28px 10px" }}>
-          <Bar w="78%" h={20} mt={0} c="var(--faint)" />
-          <Bar w="55%" h={20} mt={10} c="var(--faint)" />
-          <Bar w="40%" h={11} mt={16} />
-        </div>
-        {/* image placeholder */}
-        <div style={{ margin: "16px 28px", height: 150, borderRadius: 12, background: "repeating-linear-gradient(45deg, var(--bg-2), var(--bg-2) 10px, var(--surface) 10px, var(--surface) 20px)", border: "1px solid var(--border-2)", display: "grid", placeItems: "center" }}>
-          <span className="mono" style={{ fontSize: 11, color: "var(--faint)" }}>imagen de cabecera</span>
-        </div>
-        {/* body */}
-        <div style={{ padding: "8px 28px" }}>
-          {[100, 96, 92].map((w, i) => <Bar key={i} w={w + "%"} />)}
-          <Bar w="60%" h={15} mt={26} c="var(--faint)" />
-          {[100, 94, 88].map((w, i) => <Bar key={i} w={w + "%"} />)}
-          <Bar w="50%" h={15} mt={26} c="var(--faint)" />
-          {[100, 90].map((w, i) => <Bar key={i} w={w + "%"} />)}
-          <Bar w="55%" h={15} mt={26} c="var(--faint)" />
-          {[100, 86].map((w, i) => <Bar key={i} w={w + "%"} />)}
-        </div>
+
+      {/* Screenshot or mock */}
+      <div style={{ position: "relative" }}>
+        {isLoading && (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 320, gap: 12, color: "var(--muted)" }}>
+            <span className="spin" style={{ width: 28, height: 28, borderRadius: 99, border: "3px solid var(--seo)", borderTopColor: "transparent", display: "inline-block" }} />
+            <span style={{ fontSize: "var(--fs-sm)" }}>Renderizando página completa…</span>
+          </div>
+        )}
+
+        {isError && !imgUrl && (
+          <div style={{ padding: "32px 24px", textAlign: "center", color: "var(--muted)", fontSize: "var(--fs-sm)" }}>
+            <Icon name="alert" size={28} style={{ marginBottom: 10, color: "var(--warn)" }} />
+            <div style={{ fontWeight: 600, marginBottom: 6 }}>No se pudo capturar la página</div>
+            <div style={{ fontSize: "var(--fs-xs)" }}>{errorMsg}</div>
+            {errorMsg.includes("FIRECRAWL_API_KEY") && (
+              <div style={{ marginTop: 12, padding: "10px 14px", borderRadius: 10, background: "var(--warn-soft)", color: "var(--warn)", fontSize: "var(--fs-xs)", fontWeight: 500 }}>
+                Añade FIRECRAWL_API_KEY en Vercel → Settings → Environment Variables
+              </div>
+            )}
+          </div>
+        )}
+
+        {imgUrl && (
+          <div style={{ position: "relative", display: "inline-block", width: "100%" }}>
+            <img
+              src={imgUrl}
+              alt="Captura de la página"
+              style={{ width: "100%", display: "block", borderRadius: 0 }}
+            />
+            {/* Pins overlay */}
+            {pinned.map((s, i) => (
+              <Pin key={s.id} n={i + 1} s={s} applied={appliedIds && appliedIds.includes(s.id)}
+                pos={{ t: getPinTop(s), l: 15 + (i % 4) * 20 }} />
+            ))}
+            {pinned.length === 0 && (
+              <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", pointerEvents: "none" }}>
+                <span style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10, padding: "10px 16px", fontSize: "var(--fs-sm)", color: "var(--muted)", boxShadow: "var(--sh-sm)" }}>Marca sugerencias → para ver dónde se aplican sobre la página</span>
+              </div>
+            )}
+          </div>
+        )}
       </div>
-      {pinned.map((s, i) => <Pin key={s.id} n={i + 1} s={s} applied={appliedIds.includes(s.id)} pos={PIN_POS[s.id]} />)}
-      {pinned.length === 0 && (
-        <div style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", pointerEvents: "none" }}>
-          <span style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 10, padding: "10px 16px", fontSize: "var(--fs-sm)", color: "var(--muted)", boxShadow: "var(--sh-sm)" }}>Marca sugerencias → para ver dónde se aplican sobre la página</span>
-        </div>
-      )}
+
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .spin { animation: spin 0.7s linear infinite; }
+      `}</style>
     </div>
   );
 }
+
 
 function SuggestionCard({ s, on, onToggle, applied, onGenerate, generating, generated }) {
   const [open, setOpen] = useState(false);
