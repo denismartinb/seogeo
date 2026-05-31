@@ -1877,7 +1877,7 @@ function PreviewPane({ selectedIds, appliedIds = [], mode, setMode }) {
   const D = window.SURFACE_DATA;
   const [maxed, setMaxed] = useState(false);
   const [device, setDevice] = useState("desktop");
-  const [view, setView] = useState("content");
+  const [view, setView] = useState("seo");
   const afterIds = [...appliedIds, ...selectedIds.filter((id) => !appliedIds.includes(id))];
   const blocks = mode === "before" ? buildBlocks(appliedIds) : buildBlocks(afterIds);
   const contentChanges = afterIds.filter((id) => { const s = D.SUGGESTIONS.find((x) => x.id === id); return s && s.kind === "content"; }).length;
@@ -1885,8 +1885,8 @@ function PreviewPane({ selectedIds, appliedIds = [], mode, setMode }) {
 
   const controls = (big) => (
     <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-      <Segmented value={view} onChange={setView} options={[["content", "🤖 Vista GEO"], ["real", "🔍 Vista SEO"]]} size="sm" />
-      {view === "content" && <Segmented value={mode} onChange={setMode} options={[["before", "Antes"], ["after", "Después"]]} size="sm" />}
+      <Segmented value={view} onChange={setView} options={[["seo", "🔍 Vista SEO"], ["geo", "🤖 Vista GEO"], ["real", "📸 Página real"]]} size="sm" />
+      {(view === "seo" || view === "geo") && <Segmented value={mode} onChange={setMode} options={[["before", "Antes"], ["after", "Después"]]} size="sm" />}
       <Segmented value={device} onChange={setDevice} options={[["desktop", "Escritorio"], ["mobile", "Móvil"]]} size="sm" />
       <button onClick={() => setMaxed(!big)} title={big ? "Cerrar" : "Ampliar"}
         style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--ink-2)", display: "grid", placeItems: "center", cursor: "pointer", flexShrink: 0 }}>
@@ -1910,18 +1910,16 @@ function PreviewPane({ selectedIds, appliedIds = [], mode, setMode }) {
         <div className="scroll-area" style={{ padding: view === "real" ? 0 : device === "mobile" ? "20px 18px" : "26px 30px" }}>
           {view === "real"
             ? <RealPageView ids={afterIds} appliedIds={appliedIds} />
-            : <>
-                <div style={{ marginBottom: 14, padding: "7px 11px", borderRadius: 8, background: "var(--geo-soft)", border: "1px solid var(--border-2)", display: "flex", alignItems: "center", gap: 7, fontSize: "var(--fs-xs)", color: "var(--geo-ink)" }}>
-                  <Icon name="spark" size={13} stroke={2} />
-                  <span><b>Vista GEO:</b> texto estructurado tal como lo leen ChatGPT, Perplexity y Gemini para decidir si te citan.</span>
-                </div>
-                {blocks.map((b, i) => <ContentBlock key={b.id + i} b={b} mode={mode} />)}
-                {mode === "after" && contentChanges === 0 && (
-                  <div style={{ textAlign: "center", color: "var(--faint)", fontSize: "var(--fs-sm)", padding: "24px 0", borderTop: "1px dashed var(--border)", marginTop: 14 }}>
-                    Marca sugerencias de contenido → para ver el antes/después aquí
-                  </div>
-                )}
-              </>}
+            : view === "geo"
+              ? <GeoTextView blocks={blocks} mode={mode} contentChanges={contentChanges} />
+              : <>
+                  {blocks.map((b, i) => <ContentBlock key={b.id + i} b={b} mode={mode} />)}
+                  {mode === "after" && contentChanges === 0 && (
+                    <div style={{ textAlign: "center", color: "var(--faint)", fontSize: "var(--fs-sm)", padding: "24px 0", borderTop: "1px dashed var(--border)", marginTop: 14 }}>
+                      Marca sugerencias de contenido → para ver el antes/después aquí
+                    </div>
+                  )}
+                </>}
         </div>
       </div>
     );
@@ -1934,8 +1932,10 @@ function PreviewPane({ selectedIds, appliedIds = [], mode, setMode }) {
           <Icon name="eye" size={16} style={{ color: "var(--muted)" }} />
           <span style={{ fontWeight: 700, fontSize: "var(--fs-sm)" }}>
             {view === "real"
-              ? <><span>Vista SEO</span> <span style={{ color: "var(--faint)", fontWeight: 500 }}>· lo que ven Google y los usuarios</span></>
-              : <><span>Vista GEO</span> <span style={{ color: "var(--faint)", fontWeight: 500 }}>· lo que procesan los LLMs para citarte</span></>}
+              ? <><span>Página real</span> <span style={{ color: "var(--faint)", fontWeight: 500 }}>· renderizado visual</span></>
+              : view === "geo"
+                ? <><span>Vista GEO</span> <span style={{ color: "var(--faint)", fontWeight: 500 }}>· texto que leen los LLMs para citarte</span></>
+                : <><span>Vista SEO</span> <span style={{ color: "var(--faint)", fontWeight: 500 }}>· estructura que lee Googlebot</span></>}
           </span>
           {newChanges > 0 && <Pill color="var(--geo-ink)" soft="var(--geo-soft)">{newChanges} cambio{newChanges > 1 ? "s" : ""}</Pill>}
         </div>
@@ -1948,7 +1948,7 @@ function PreviewPane({ selectedIds, appliedIds = [], mode, setMode }) {
           <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", flexDirection: "column", height: "100%", maxWidth: 1100, width: "100%", margin: "0 auto" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, marginBottom: 12, color: "white", flexWrap: "wrap" }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <Icon name="eye" size={17} /><span style={{ fontWeight: 700 }}>{view === "real" ? "Vista SEO ampliada" : "Vista GEO ampliada"}</span>
+                <Icon name="eye" size={17} /><span style={{ fontWeight: 700 }}>{view === "real" ? "Página real ampliada" : view === "geo" ? "Vista GEO ampliada" : "Vista SEO ampliada"}</span>
                 <span className="mono" style={{ fontSize: "var(--fs-xs)", opacity: 0.8 }}>{D.TARGET.url}</span>
               </div>
               {controls(true)}
@@ -1988,6 +1988,30 @@ function Pin({ n, s, applied, pos }) {
     </div>
   );
 }
+
+
+function GeoTextView({ blocks, mode, contentChanges }) {
+  const D = window.SURFACE_DATA;
+  const rawText = D._rawGeo && D._rawGeo.answer_ready_summary
+    ? null  // will use blocks
+    : null;
+
+  return (
+    <div>
+      <div style={{ marginBottom: 14, padding: "8px 12px", borderRadius: 8, background: "var(--geo-soft)", border: "1px solid var(--border-2)", display: "flex", alignItems: "flex-start", gap: 8, fontSize: "var(--fs-xs)", color: "var(--geo-ink)", lineHeight: 1.5 }}>
+        <Icon name="spark" size={14} stroke={2} style={{ flexShrink: 0, marginTop: 1 }} />
+        <span><b>Vista GEO:</b> así lee tu contenido un LLM (ChatGPT, Perplexity, Gemini) — sin CSS ni navegación, solo texto estructurado. Las mejoras GEO actúan sobre este texto.</span>
+      </div>
+      {blocks.map((b, i) => <ContentBlock key={b.id + i} b={b} mode={mode} />)}
+      {mode === "after" && contentChanges === 0 && (
+        <div style={{ textAlign: "center", color: "var(--faint)", fontSize: "var(--fs-sm)", padding: "24px 0", borderTop: "1px dashed var(--border)", marginTop: 14 }}>
+          Selecciona mejoras GEO → para ver cómo queda el contenido optimizado para IA
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 function RealPageView({ ids, appliedIds }) {
   const D = window.SURFACE_DATA;
