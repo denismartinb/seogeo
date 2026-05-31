@@ -27,6 +27,7 @@ from core.auth import verify_key
 from core.llm import generate, GeminiUnavailableError
 from core.rate_limit import limiter, get_limit
 from core.scraper import fetch_url_text, fetch_url_content, _build_structure_context
+from core.scorer import score_content
 from core.models import (
     TextInput, UrlInput, TextInputBody, UrlInputBody,
     SeoMetadata, GeoAnalysis, FullAnalysis,
@@ -591,20 +592,57 @@ async def _run_full_analysis(type_: str, input_data: dict) -> dict:
             target_keyword=input_data.get("target_keyword"),
         )
 
-    prompt = _build_content_prompt(text_body)
-    # Prepend structural metadata so LLM knows exactly what exists on the page.
-    # The reminder "Solo JSON" prevents the model from adding prose before the JSON.
-    if structure_ctx:
-        prompt = f"ESTRUCTURA ACTUAL DE LA PÁGINA (usa esta info para dar sugerencias precisas):\n{structure_ctx}\n\nIMPORTANTE: Tu respuesta debe ser SOLO el JSON solicitado, sin texto previo ni explicaciones.\n\n{prompt}"
+    # ── 1. Deterministic scoring (always consistent) ──────────────────────────
+    scores = score_content(
+        text=fetched_text,
+        metadata=page_metadata,
+        target_keyword=input_data.get("target_keyword"),
+    )
+    seo_computed = scores["seo"]
+    geo_computed = scores["geo"]
 
+    # ── 2. Build LLM prompt with pre-computed scores injected ─────────────────
+    prompt = _build_content_prompt(text_body)
+
+    score_ctx = f"""SCORES PRECALCULADOS (usa estos valores exactos en el JSON, no los recalcules):
+SEO_SCORE: {seo_computed['seo_score']}
+SEO_BREAKDOWN: {seo_computed['score_breakdown']}
+GEO_SCORE: {geo_computed['geo_score']}
+GEO_BREAKDOWN: {geo_computed['score_breakdown']}
+CITATION_LIKELIHOOD: {geo_computed['citation_likelihood_computed']}
+WORD_COUNT: {seo_computed['word_count']}
+
+"""
+    if structure_ctx:
+        score_ctx += f"ESTRUCTURA ACTUAL DE LA PÁGINA:\n{structure_ctx}\n\n"
+
+    score_ctx += "IMPORTANTE: Tu respuesta debe ser SOLO el JSON solicitado, sin texto previo.\n\n"
+    prompt = score_ctx + prompt
+
+    # ── 3. LLM generates qualitative fields only ──────────────────────────────
     seo_raw, geo_raw = await asyncio.gather(
         generate(SEO_SYSTEM, prompt),
         generate(GEO_SYSTEM, prompt),
     )
     seo = _parse_json(seo_raw, SeoMetadata)
     geo = _parse_json(geo_raw, GeoAnalysis)
-    result = FullAnalysis(seo=seo, geo=geo).model_dump()
-    # Attach original text and metadata for the frontend preview
+
+    # ── 4. Override qualitative scores with deterministic ones ─────────────────
+    # The LLM might still return a different number despite instructions —
+    # we always enforce the computed score.
+    seo_dict = seo.model_dump()
+    seo_dict["seo_score"] = seo_computed["seo_score"]
+    seo_dict["score_breakdown"] = seo_computed["score_breakdown"]
+
+    geo_dict = geo.model_dump()
+    geo_dict["geo_score"] = geo_computed["geo_score"]
+    geo_dict["score_breakdown"] = geo_computed["score_breakdown"]
+    geo_dict["citation_likelihood"] = geo_computed["citation_likelihood_computed"]
+
+    result = {
+        "seo": seo_dict,
+        "geo": geo_dict,
+    }
     result["_original_text"] = fetched_text[:8000] if fetched_text else ""
     result["_page_metadata"] = page_metadata
     return result
