@@ -322,14 +322,25 @@ input, textarea, select { font-family: inherit; }
         });
         var rawText = (result._original_text || opts.text || (mode!=='url' ? inputVal : ''));
         if (rawText && rawText.length > 50) {
-          var lines = rawText.split(/\n+/).map(function(l){return l.trim();}).filter(function(l){return l.length>20;});
-          var pCount=0, h2Count=0;
-          lines.slice(0,16).forEach(function(t,i){
-            if(pCount>=7) return;
-            if(t.length<90 && !/[.!?,]$/.test(t) && i>0 && h2Count<3 && t.split(' ').length<12) {
-              blocks.push({id:'h2_'+i,type:'h2',text:t}); h2Count++;
-            } else if(t.length>30) {
-              blocks.push({id:'p'+i,type:'p',text:t.slice(0,600)}); pCount++;
+          // Parse markdown-formatted text (from Firecrawl) or plain text
+          var lines = rawText.split(/\n/).map(function(l){return l.trimEnd();});
+          var pCount=0, h2Count=0, blockId=0;
+          lines.forEach(function(line) {
+            if(pCount>=8) return;
+            var t = line.trim();
+            if(!t) return;
+            // Markdown headings
+            if(/^# /.test(t)) {
+              if(blocks.length===0 || blocks[0].type!=='h1') // only first h1
+                blocks.unshift({id:'h1',type:'h1',text:t.replace(/^# /,'')});
+            } else if(/^## /.test(t) && h2Count<4) {
+              blocks.push({id:'h2_'+(blockId++),type:'h2',text:t.replace(/^## /,'')}); h2Count++;
+            } else if(/^### /.test(t) && h2Count<5) {
+              blocks.push({id:'h2_'+(blockId++),type:'h2',text:t.replace(/^### /,'')}); h2Count++;
+            } else if(t.length>40) {
+              // Strip markdown bold/italic for plain display
+              var clean = t.replace(/\*\*([^*]+)\*\*/g,'$1').replace(/\*([^*]+)\*/g,'$1').replace(/`([^`]+)`/g,'$1');
+              blocks.push({id:'p'+(blockId++),type:'p',text:clean.slice(0,600)}); pCount++;
             }
           });
         } else {
