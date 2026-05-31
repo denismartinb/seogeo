@@ -177,21 +177,78 @@ def _build_content_prompt(data: TextInput | UrlInput) -> str:
     return "\n\n".join(parts)
 
 
+def _repair_json(s: str) -> str:
+    """
+    Fixes the most common LLM JSON issues without external libraries:
+    - Unescaped newlines / tabs / carriage returns inside string values
+    - Trailing commas before } or ]
+    Processes char-by-char so it handles nested strings correctly.
+    """
+    result = []
+    in_string = False
+    escaped = False
+    for ch in s:
+        if escaped:
+            result.append(ch)
+            escaped = False
+        elif ch == "\\":
+            result.append(ch)
+            escaped = True
+        elif ch == '"':
+            result.append(ch)
+            in_string = not in_string
+        elif in_string and ch == "\n":
+            result.append("\\n")
+        elif in_string and ch == "\r":
+            result.append("\\r")
+        elif in_string and ch == "\t":
+            result.append("\\t")
+        else:
+            result.append(ch)
+    fixed = "".join(result)
+    # Remove trailing commas before } or ]
+    import re as _re
+    fixed = _re.sub(r",\s*([}\]])", r"\1", fixed)
+    return fixed
+
+
 def _parse_json(raw: str, model_class):
-    """Parsea JSON de Gemini y valida con Pydantic."""
+    """Parsea JSON de Gemini y valida con Pydantic. Intenta reparar JSON malformado."""
+    clean = raw.strip()
+    # Strip markdown code fences if present
+    if clean.startswith("```"):
+        parts = clean.split("```")
+        clean = parts[1] if len(parts) > 1 else clean
+        if clean.startswith("json"):
+            clean = clean[4:]
+    clean = clean.strip()
+
+    # Try 1: direct parse
+    last_err = None
     try:
-        clean = raw.strip()
-        if clean.startswith("```"):
-            clean = clean.split("```")[1]
-            if clean.startswith("json"):
-                clean = clean[4:]
-        data = json.loads(clean.strip())
-        return model_class(**data)
-    except Exception as e:
-        raise HTTPException(
-            status_code=502,
-            detail=f"Error parseando respuesta del modelo: {str(e)}. Raw: {raw[:200]}"
-        )
+        return model_class(**json.loads(clean))
+    except (json.JSONDecodeError, Exception) as e:
+        last_err = e
+
+    # Try 2: repair common LLM issues (unescaped newlines, trailing commas)
+    try:
+        return model_class(**json.loads(_repair_json(clean)))
+    except (json.JSONDecodeError, Exception) as e:
+        last_err = e
+
+    # Try 3: extract first {...} block (model sometimes prepends explanation text)
+    import re as _re
+    m = _re.search(r"\{[\s\S]*\}", clean)
+    if m:
+        try:
+            return model_class(**json.loads(_repair_json(m.group(0))))
+        except Exception as e:
+            last_err = e
+
+    raise HTTPException(
+        status_code=502,
+        detail=f"Error parseando respuesta del modelo: {str(last_err)}. Raw: {raw[:300]}"
+    )
 
 
 # ── Health ────────────────────────────────────────────────────────────────────
