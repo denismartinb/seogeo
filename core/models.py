@@ -203,3 +203,43 @@ class GenerateBlockBody(BaseModel):
 
 class GenerateBlockOutput(BaseModel):
     generated_text: str = Field(..., description="Contenido generado listo para insertar")
+
+
+# ── Domain analysis ───────────────────────────────────────────────────────────
+
+class V2AnalyzeBodyDomain(BaseModel):
+    """Body que acepta 'domain' como type (extensión del V2AnalyzeBody)."""
+    type: str = Field(..., description="url | text | keywords | domain")
+    url: Optional[str] = None
+    text: Optional[str] = None
+    language: Optional[str] = "es"
+    target_keyword: Optional[str] = None
+    session_id: Optional[str] = None
+
+
+# ── Solution generator ────────────────────────────────────────────────────────
+
+class GenerateSolutionBody(BaseModel):
+    domain: str = Field(..., description="Dominio analizado (e.g. example.com)")
+    issue_id: str = Field(..., description="ID único del issue")
+    issue_title: str = Field(..., description="Título del problema")
+    issue_desc: str = Field(..., description="Descripción breve del problema")
+    why_matters: Optional[str] = Field(None, description="Por qué importa este issue")
+    lane: str = Field(..., description="seo | geo")
+    language: Optional[str] = Field("es", description="Idioma de la respuesta")
+
+
+class SolutionStep(BaseModel):
+    n: int
+    title: str
+    detail: str
+    code: Optional[str] = None
+
+
+class GenerateSolutionOutput(BaseModel):
+    explanation: str
+    difficulty: str
+    time_estimate: str
+    steps: list[SolutionStep]
+    example: Optional[str] = None
+    pro_tip: Optional[str] = None

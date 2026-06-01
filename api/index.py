@@ -40,11 +40,12 @@ from core.models import (
     KeywordResearchOutput, SchemaOutput,
     ImproveBody, ImproveOutput,
     ErrorResponse,
-    V2AnalyzeBody, V2AnalysisResponse, AnalysisSummary, AnalysisDetail,
+    V2AnalyzeBody, V2AnalyzeBodyDomain, V2AnalysisResponse, AnalysisSummary, AnalysisDetail,
     ImprovementsOutput, ImprovementItem,
     GenerateBlockBody, GenerateBlockOutput,
+    GenerateSolutionBody, GenerateSolutionOutput, SolutionStep,
 )
-from core.prompts import SEO_SYSTEM, GEO_SYSTEM, KEYWORD_SYSTEM, SCHEMA_SYSTEM, IMPROVEMENTS_SYSTEM
+from core.prompts import SEO_SYSTEM, GEO_SYSTEM, KEYWORD_SYSTEM, SCHEMA_SYSTEM, IMPROVEMENTS_SYSTEM, DOMAIN_SYSTEM, SOLUTION_SYSTEM
 # (db imports consolidated above)
 
 IMPROVE_SYSTEM = """Eres un experto en SEO y GEO (Generative Engine Optimization). Mejoras textos aplicando instrucciones específicas para optimizarlos tanto para Google como para aparecer en respuestas de ChatGPT, Gemini y Perplexity. Mantienes siempre el tono, estilo y longitud similar al original."""
@@ -213,7 +214,7 @@ def _repair_json(s: str) -> str:
 
 
 def _parse_json(raw: str, model_class):
-    """Parsea JSON de Gemini y valida con Pydantic. Intenta reparar JSON malformado."""
+    """Parsea JSON de Gemini y valida con Pydantic (o devuelve dict si model_class es None)."""
     clean = raw.strip()
     # Strip markdown code fences if present
     if clean.startswith("```"):
@@ -223,16 +224,23 @@ def _parse_json(raw: str, model_class):
             clean = clean[4:]
     clean = clean.strip()
 
+    def _load(s: str):
+        """Parse JSON and optionally validate with Pydantic."""
+        parsed = json.loads(s)
+        if model_class is None:
+            return parsed
+        return model_class(**parsed)
+
     # Try 1: direct parse
     last_err = None
     try:
-        return model_class(**json.loads(clean))
+        return _load(clean)
     except (json.JSONDecodeError, Exception) as e:
         last_err = e
 
     # Try 2: repair common LLM issues (unescaped newlines, trailing commas)
     try:
-        return model_class(**json.loads(_repair_json(clean)))
+        return _load(_repair_json(clean))
     except (json.JSONDecodeError, Exception) as e:
         last_err = e
 
@@ -241,9 +249,13 @@ def _parse_json(raw: str, model_class):
     m = _re.search(r"\{[\s\S]*\}", clean)
     if m:
         try:
-            return model_class(**json.loads(_repair_json(m.group(0))))
+            return _load(_repair_json(m.group(0)))
         except Exception as e:
             last_err = e
+
+    # For free-form parsing (model_class=None), return empty dict rather than 502
+    if model_class is None:
+        return {}
 
     raise HTTPException(
         status_code=502,
@@ -628,6 +640,117 @@ def _content_hash(text: str, target_keyword: str = "", language: str = "es") -> 
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
+async def _run_domain_analysis(domain: str, language: str = "es") -> dict:
+    """
+    Crawls a domain's key files (robots.txt, sitemap, homepage + top pages)
+    and runs Gemini domain analysis to produce a structured issue list.
+    """
+    import re, xml.etree.ElementTree as ET
+
+    # Normalize domain → ensure https://
+    domain = domain.strip().rstrip("/")
+    if not domain.startswith("http"):
+        base_url = "https://" + domain
+    else:
+        base_url = domain
+        domain = re.sub(r"https?://", "", domain).split("/")[0]
+
+    collected: dict[str, str] = {}
+
+    async def safe_fetch(url: str, label: str, max_chars: int = 4000) -> str:
+        try:
+            async with httpx.AsyncClient(
+                headers={"User-Agent": "SurfaceSEOBot/1.0 (+https://surface.app)"},
+                timeout=12,
+                follow_redirects=True,
+                max_redirects=3,
+            ) as client:
+                r = await client.get(url)
+                if r.status_code == 200:
+                    text = r.text[:max_chars]
+                    collected[label] = text
+                    return text
+        except Exception:
+            pass
+        return ""
+
+    # 1. robots.txt
+    robots_txt = await safe_fetch(f"{base_url}/robots.txt", "robots.txt", 2000)
+
+    # 2. sitemap
+    sitemap_urls: list[str] = []
+    sitemap_raw = await safe_fetch(f"{base_url}/sitemap.xml", "sitemap.xml", 8000)
+    if not sitemap_raw:
+        sitemap_raw = await safe_fetch(f"{base_url}/sitemap_index.xml", "sitemap.xml", 8000)
+    if sitemap_raw:
+        try:
+            root = ET.fromstring(sitemap_raw)
+            ns = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+            sitemap_urls = [loc.text for loc in root.findall(".//sm:loc", ns) if loc.text][:20]
+        except Exception:
+            pass
+
+    # 3. Homepage
+    homepage = await safe_fetch(base_url, "homepage", 6000)
+
+    # 4. Sample pages from sitemap (up to 4 more)
+    pages_fetched: list[dict] = []
+    sample_urls = [u for u in sitemap_urls if u and u != base_url and u != base_url + "/"][:4]
+    for url in sample_urls:
+        content = await safe_fetch(url, f"page:{url}", 3000)
+        if content:
+            pages_fetched.append({"url": url, "content": content[:1500]})
+
+    # Build prompt for Gemini
+    prompt_parts = [f"DOMINIO: {domain}\nIDIOMA: {language}\n"]
+
+    if robots_txt:
+        prompt_parts.append(f"=== robots.txt ===\n{robots_txt}\n")
+    else:
+        prompt_parts.append("=== robots.txt ===\n(no encontrado o inaccesible)\n")
+
+    if sitemap_urls:
+        prompt_parts.append(f"=== sitemap.xml — {len(sitemap_urls)} URLs encontradas ===\n" + "\n".join(sitemap_urls[:15]) + "\n")
+    else:
+        prompt_parts.append("=== sitemap.xml ===\n(no encontrado)\n")
+
+    if homepage:
+        prompt_parts.append(f"=== Homepage ({base_url}) ===\n{homepage[:4000]}\n")
+
+    for p in pages_fetched:
+        prompt_parts.append(f"=== Página: {p['url']} ===\n{p['content']}\n")
+
+    prompt = "\n".join(prompt_parts)
+
+    raw = await generate(DOMAIN_SYSTEM, prompt)
+    result = _parse_json(raw, None)  # type: ignore — free dict
+
+    # Normalise so frontend always gets the expected shape
+    if not isinstance(result, dict):
+        result = {}
+
+    result.setdefault("domain", domain)
+    result.setdefault("domain_seo_score", 60)
+    result.setdefault("domain_geo_score", 45)
+    result.setdefault("pages_crawled", len(pages_fetched) + 1)
+    result.setdefault("issues", [])
+    result.setdefault("pages", [])
+
+    # Ensure issues have required fields
+    for i, issue in enumerate(result.get("issues", [])):
+        issue.setdefault("id", f"issue_{i}")
+        issue.setdefault("lane", "seo")
+        issue.setdefault("severity", "medio")
+        issue.setdefault("title", "Problema detectado")
+        issue.setdefault("desc", "")
+        issue.setdefault("why_matters", "")
+        issue.setdefault("what_wrong", "")
+        issue.setdefault("pages_affected", 0)
+        issue.setdefault("impact", 10)
+
+    return {"_domain": True, "domain_result": result}
+
+
 async def _run_full_analysis(type_: str, input_data: dict) -> dict:
     """
     Runs SEO+GEO (or keywords) analysis and returns a serializable dict.
@@ -715,26 +838,52 @@ async def _run_full_analysis(type_: str, input_data: dict) -> dict:
     "/v2/analyze",
     response_model=V2AnalysisResponse,
     tags=["V2"],
-    summary="Analiza y persiste (URL, texto o keywords)",
+    summary="Analiza y persiste (URL, texto, keywords o dominio completo)",
     responses={401: {"model": ErrorResponse}, 422: {"model": ErrorResponse}, 502: {"model": ErrorResponse}},
 )
 @limiter.limit(get_limit)
 async def v2_analyze(
     request: Request,
-    body: V2AnalyzeBody | None = None,
+    body: V2AnalyzeBodyDomain | None = None,
     _key: str = Depends(verify_key),
 ):
     """
-    Ejecuta un análisis SEO+GEO (o keyword research) y lo persiste en la base de datos.
+    Ejecuta un análisis SEO+GEO (o keyword research o auditoría de dominio) y lo persiste.
 
     - **type=url** — scraping automático + análisis completo
     - **type=text** — análisis de texto pegado directamente
     - **type=keywords** — keyword research con potencial GEO
+    - **type=domain** — auditoría completa del dominio (robots.txt, sitemap, páginas)
     """
     if not body:
         raise HTTPException(status_code=422, detail="Se requiere body JSON con 'type', 'url'/'text' según el tipo.")
 
     input_data = body.model_dump(exclude={"session_id"})
+
+    # ── Domain analysis path ───────────────────────────────────────────────────
+    if body.type == "domain":
+        domain_val = (body.url or body.text or "").strip()
+        if not domain_val:
+            raise HTTPException(status_code=422, detail="Se requiere 'url' o 'text' con el dominio a analizar.")
+        result = await _run_domain_analysis(domain_val, body.language or "es")
+        analysis_id = await save_analysis(
+            type_="domain",
+            input_data=input_data,
+            result=result,
+            session_id=body.session_id,
+        )
+        dr = result.get("domain_result", {})
+        from datetime import datetime
+        return V2AnalysisResponse(
+            analysis_id=analysis_id,
+            type="domain",
+            title=dr.get("domain", domain_val),
+            result=result,
+            seo_score=dr.get("domain_seo_score"),
+            geo_score=dr.get("domain_geo_score"),
+            created_at=datetime.utcnow().isoformat(),
+        )
+
     result = await _run_full_analysis(body.type, input_data)
 
     analysis_id = await save_analysis(
@@ -970,6 +1119,62 @@ No incluyas marcadores markdown de cabecera. Solo el texto del bloque."""
 
     raw = await generate(_BLOCK_SYSTEM, prompt)
     return GenerateBlockOutput(generated_text=raw.strip())
+
+
+@app.post(
+    "/v2/generate-solution",
+    tags=["V2"],
+    summary="Genera solución detallada paso a paso para un issue de dominio",
+    responses={401: {"model": ErrorResponse}, 422: {"model": ErrorResponse}},
+)
+@limiter.limit(get_limit)
+async def v2_generate_solution(
+    request: Request,
+    body: GenerateSolutionBody | None = None,
+    _key: str = Depends(verify_key),
+):
+    """
+    Dado un issue detectado en la auditoría de dominio, genera una solución
+    técnica detallada con explicación, pasos y ejemplos de código.
+    """
+    if not body:
+        raise HTTPException(status_code=422, detail="Se requiere body JSON con los datos del issue.")
+
+    prompt = f"""DOMINIO: {body.domain}
+LANE: {body.lane.upper()} ({'SEO clásico — Google / Bing' if body.lane == 'seo' else 'GEO — IA: ChatGPT, Perplexity, Gemini, AI Overviews'})
+IDIOMA RESPUESTA: {body.language or 'es'}
+
+ISSUE ID: {body.issue_id}
+TÍTULO DEL PROBLEMA: {body.issue_title}
+DESCRIPCIÓN: {body.issue_desc}
+POR QUÉ IMPORTA: {body.why_matters or '(sin detalle adicional)'}
+
+Genera la solución completa y accionable para este problema específico en el dominio {body.domain}."""
+
+    raw = await generate(SOLUTION_SYSTEM, prompt)
+    parsed = _parse_json(raw, None)  # type: ignore
+
+    if not isinstance(parsed, dict):
+        parsed = {}
+
+    # Normalize
+    steps = []
+    for s in parsed.get("steps", []):
+        steps.append(SolutionStep(
+            n=s.get("n", len(steps) + 1),
+            title=s.get("title", ""),
+            detail=s.get("detail", ""),
+            code=s.get("code"),
+        ))
+
+    return GenerateSolutionOutput(
+        explanation=parsed.get("explanation", ""),
+        difficulty=parsed.get("difficulty", "medio"),
+        time_estimate=parsed.get("time_estimate", ""),
+        steps=steps,
+        example=parsed.get("example"),
+        pro_tip=parsed.get("pro_tip"),
+    )
 
 
 # ── Dev server ────────────────────────────────────────────────────────────────

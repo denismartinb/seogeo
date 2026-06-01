@@ -241,16 +241,64 @@ input, textarea, select { font-family: inherit; }
 
   window._runAnalysis = async function(mode, val, opts) {
     var body = { type: mode, language: opts.language || 'es', session_id: SID };
-    if (mode === 'url')     { body.url = val; if (opts.keyword) body.target_keyword = opts.keyword; }
+    if (mode === 'url')       { body.url = val; if (opts.keyword) body.target_keyword = opts.keyword; }
     else if (mode === 'text') { body.text = val; if (opts.url) body.url = opts.url; if (opts.keyword) body.target_keyword = opts.keyword; }
-    else                    { body.text = val; }
+    else if (mode === 'domain') { body.url = val; }
+    else                      { body.text = val; }
     return apiCall('POST', '/v2/analyze', body);
+  };
+
+  window._generateSolution = async function(issue, domain) {
+    return apiCall('POST', '/v2/generate-solution', {
+      domain: domain,
+      issue_id: issue.id,
+      issue_title: issue.title,
+      issue_desc: issue.desc,
+      why_matters: issue.why_matters || '',
+      lane: issue.lane,
+      language: 'es',
+    });
   };
 
   window._loadRecents = function() { return apiCall('GET', '/v2/analyses?session_id=' + encodeURIComponent(SID) + '&limit=30'); };
   window._loadAnalysis = function(id) { return apiCall('GET', '/v2/analyses/' + id); };
   window._loadImprovements = function(id) { return apiCall('POST', '/v2/analyses/' + id + '/improvements'); };
   window._deleteAnalysis = function(id) { return apiCall('DELETE', '/v2/analyses/' + id); };
+
+  // populateSurfaceData — domain mode shortcut
+  window.populateDomainData = function(inputVal, data) {
+    var dr = (data.result || {}).domain_result || {};
+    var prevHistory = (window.SURFACE_DATA && window.SURFACE_DATA.HISTORY) || [];
+    var domain = dr.domain || inputVal || '';
+    window.SURFACE_DATA = Object.assign({}, window.SURFACE_DATA, {
+      TARGET: { mode:'domain', url:'https://'+domain, domain:domain, title:domain, favicon:(domain.slice(0,2)).toUpperCase(), fetchedAt: new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}), words:0, query:'' },
+      SCORES: { seo: dr.domain_seo_score || 0, geo: dr.domain_geo_score || 0 },
+      DOMAIN: {
+        domain: domain,
+        pagesCrawled: dr.pages_crawled || 0,
+        seo: dr.domain_seo_score || 0,
+        geo: dr.domain_geo_score || 0,
+        issues: (dr.issues || []).map(function(it) {
+          return {
+            id: it.id || ('issue_' + Math.random().toString(36).slice(2)),
+            lane: it.lane || 'seo',
+            severity: it.severity || 'medio',
+            title: it.title || '',
+            desc: it.desc || '',
+            why_matters: it.why_matters || '',
+            what_wrong: it.what_wrong || '',
+            pages: it.pages_affected || 0,
+            impact: it.impact || 10,
+          };
+        }),
+        pages: (dr.pages || []).map(function(p) {
+          return { url:p.url||'', title:p.title||'', type:p.type||'Info', seo:p.seo||0, geo:p.geo||0, traffic:p.traffic||0, opp:!!p.opp };
+        }),
+      },
+      _analysisId: data.analysis_id,
+      HISTORY: prevHistory,
+    });
+  };
 
   // populateSurfaceData
   window.populateSurfaceData = function(mode, inputVal, opts, data) {
@@ -1873,11 +1921,11 @@ function Segmented({ value, onChange, options, size }) {
   );
 }
 
-function PreviewPane({ selectedIds, appliedIds = [], mode, setMode }) {
+function PreviewPane({ selectedIds, appliedIds = [], mode, setMode, view = "seo", setView }) {
   const D = window.SURFACE_DATA;
   const [maxed, setMaxed] = useState(false);
   const [device, setDevice] = useState("desktop");
-  const [view, setView] = useState("seo");
+  const _setView = setView || (() => {});
   const afterIds = [...appliedIds, ...selectedIds.filter((id) => !appliedIds.includes(id))];
   const blocks = mode === "before" ? buildBlocks(appliedIds) : buildBlocks(afterIds);
   const contentChanges = afterIds.filter((id) => { const s = D.SUGGESTIONS.find((x) => x.id === id); return s && s.kind === "content"; }).length;
@@ -1885,10 +1933,10 @@ function PreviewPane({ selectedIds, appliedIds = [], mode, setMode }) {
 
   const controls = (big) => (
     <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-      <Segmented value={view} onChange={setView} options={[["seo", "🔍 Vista SEO"], ["geo", "🤖 Vista GEO"], ["real", "📸 Página real"]]} size="sm" />
+      <Segmented value={view} onChange={_setView} options={[["seo", "🔍 Vista SEO"], ["geo", "🤖 Vista GEO"], ["real", "📸 Página real"]]} size="sm" />
       {(view === "seo" || view === "geo") && <Segmented value={mode} onChange={setMode} options={[["before", "Antes"], ["after", "Después"]]} size="sm" />}
       <Segmented value={device} onChange={setDevice} options={[["desktop", "Escritorio"], ["mobile", "Móvil"]]} size="sm" />
-      <button onClick={() => setMaxed(!big)} title={big ? "Cerrar" : "Ampliar"}
+      <button onClick={() => setMaxed(b => !b)} title={big ? "Cerrar" : "Ampliar"}
         style={{ width: 30, height: 30, borderRadius: 8, border: "1px solid var(--border)", background: "var(--surface)", color: "var(--ink-2)", display: "grid", placeItems: "center", cursor: "pointer", flexShrink: 0 }}>
         <Icon name={big ? "x" : "ext"} size={15} />
       </button>
@@ -1912,14 +1960,7 @@ function PreviewPane({ selectedIds, appliedIds = [], mode, setMode }) {
             ? <RealPageView ids={afterIds} appliedIds={appliedIds} />
             : view === "geo"
               ? <GeoTextView blocks={blocks} mode={mode} contentChanges={contentChanges} />
-              : <>
-                  {blocks.map((b, i) => <ContentBlock key={b.id + i} b={b} mode={mode} />)}
-                  {mode === "after" && contentChanges === 0 && (
-                    <div style={{ textAlign: "center", color: "var(--faint)", fontSize: "var(--fs-sm)", padding: "24px 0", borderTop: "1px dashed var(--border)", marginTop: 14 }}>
-                      Marca sugerencias de contenido → para ver el antes/después aquí
-                    </div>
-                  )}
-                </>}
+              : <SeoRawView blocks={blocks} mode={mode} contentChanges={contentChanges} />}
         </div>
       </div>
     );
@@ -1990,22 +2031,181 @@ function Pin({ n, s, applied, pos }) {
 }
 
 
-function GeoTextView({ blocks, mode, contentChanges }) {
+/* ─── MetaRow & HeadingRow helpers (for SeoRawView) ─── */
+function MetaRow({ label, value, good, mono }) {
+  return (
+    <div style={{ display: "flex", gap: 10, padding: "6px 0", borderBottom: "1px solid var(--border-2)", fontSize: "var(--fs-xs)", alignItems: "flex-start" }}>
+      <code style={{ width: 148, flexShrink: 0, color: "var(--seo-ink)", fontFamily: "var(--font-mono)", fontSize: "var(--fs-xs)", paddingTop: 1 }}>{label}</code>
+      <span style={{ flex: 1, color: value ? "var(--ink-2)" : "var(--poor)", lineHeight: 1.5, fontFamily: mono ? "var(--font-mono)" : "inherit" }}>
+        {value || <span style={{ color: "var(--poor)", fontStyle: "italic" }}>No definido</span>}
+      </span>
+      <span style={{ color: good ? "var(--good)" : "var(--poor)", fontSize: 13, flexShrink: 0 }}>{good ? "✓" : "✗"}</span>
+    </div>
+  );
+}
+
+function HeadingRow({ level, text, hidden, indent }) {
+  const isH1 = level === "H1";
+  return (
+    <div style={{ display: "flex", gap: 10, padding: "5px 0", borderBottom: "1px solid var(--border-2)", alignItems: "flex-start", paddingLeft: indent ? 16 : 0 }}>
+      <code style={{ width: isH1 ? 24 : 28, flexShrink: 0, fontFamily: "var(--font-mono)", color: isH1 ? "var(--seo-ink)" : "var(--muted)", fontWeight: 700, fontSize: "var(--fs-xs)", paddingTop: 1 }}>{level}</code>
+      <span style={{ flex: 1, color: "var(--ink-2)", lineHeight: 1.4, fontSize: "var(--fs-xs)" }}>
+        {text}
+        {hidden && <span style={{ color: "var(--warn)", fontWeight: 700, marginLeft: 6 }}>⚠ Oculto visualmente</span>}
+      </span>
+    </div>
+  );
+}
+
+/* ─── SeoRawView: how Googlebot sees the page ─── */
+function SeoRawView({ blocks, mode, contentChanges }) {
   const D = window.SURFACE_DATA;
-  const rawText = D._rawGeo && D._rawGeo.answer_ready_summary
-    ? null  // will use blocks
-    : null;
+  const meta = D._pageMetadata || {};
+  const seo = D._rawSeo || {};
+  const title = meta.title || seo.title || "";
+  const metaDesc = meta.meta_description || seo.meta_description || "";
+  const canonical = meta.canonical || "";
+  const h1s = meta.h1 || [];
+  const h2s = meta.h2 || [];
+  const hasSchema = meta.has_schema;
+  const schemaCount = meta.schema_count || 0;
+  const ogTitle = seo.og_title || seo.title || "";
 
   return (
     <div>
-      <div style={{ marginBottom: 14, padding: "8px 12px", borderRadius: 8, background: "var(--geo-soft)", border: "1px solid var(--border-2)", display: "flex", alignItems: "flex-start", gap: 8, fontSize: "var(--fs-xs)", color: "var(--geo-ink)", lineHeight: 1.5 }}>
-        <Icon name="spark" size={14} stroke={2} style={{ flexShrink: 0, marginTop: 1 }} />
-        <span><b>Vista GEO:</b> así lee tu contenido un LLM (ChatGPT, Perplexity, Gemini) — sin CSS ni navegación, solo texto estructurado. Las mejoras GEO actúan sobre este texto.</span>
+      {/* Banner */}
+      <div style={{ marginBottom: 14, padding: "8px 12px", borderRadius: 8, background: "var(--seo-soft)", border: "1px solid var(--border-2)", display: "flex", alignItems: "flex-start", gap: 8, fontSize: "var(--fs-xs)", color: "var(--seo-ink)", lineHeight: 1.5 }}>
+        <Icon name="search" size={14} stroke={2} style={{ flexShrink: 0, marginTop: 1 }} />
+        <span><b>Vista Googlebot / WRS:</b> HTML renderizado sin CSS ni JS. Esto es lo que indexa Google y determina tu posicionamiento en SERP.</span>
+      </div>
+
+      {/* HEAD metadata */}
+      <div style={{ marginBottom: 12, padding: "12px 14px", borderRadius: 10, background: "var(--bg-2)", border: "1px solid var(--border)" }}>
+        <div style={{ fontSize: "var(--fs-xs)", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>
+          {"<head>"} — Metadatos
+        </div>
+        <MetaRow label="<title>" value={title} good={!!title && title.length >= 30 && title.length <= 65} />
+        <MetaRow label="<meta description>" value={metaDesc} good={!!metaDesc && metaDesc.length >= 100 && metaDesc.length <= 160} />
+        {canonical && <MetaRow label="<link canonical>" value={canonical} good mono />}
+        {ogTitle && <MetaRow label="<meta og:title>" value={ogTitle} good={!!ogTitle} />}
+        <MetaRow
+          label="Schema.org"
+          value={hasSchema ? `${schemaCount} schema${schemaCount > 1 ? "s" : ""} detectado${schemaCount > 1 ? "s" : ""}` : "No tiene structured data"}
+          good={hasSchema}
+        />
+      </div>
+
+      {/* Heading structure */}
+      <div style={{ marginBottom: 12, padding: "12px 14px", borderRadius: 10, background: "var(--bg-2)", border: "1px solid var(--border)" }}>
+        <div style={{ fontSize: "var(--fs-xs)", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>
+          Jerarquía de encabezados
+        </div>
+        {h1s.length === 0 && (
+          <div style={{ fontSize: "var(--fs-xs)", color: "var(--poor)", fontWeight: 600, padding: "4px 0" }}>⚠ Ningún H1 detectado — impacto crítico en SEO</div>
+        )}
+        {h1s.length > 1 && (
+          <div style={{ fontSize: "var(--fs-xs)", color: "var(--warn)", fontWeight: 600, padding: "4px 0 6px" }}>⚠ Múltiples H1 ({h1s.length}) — solo debe haber uno</div>
+        )}
+        {h1s.map((h, i) => <HeadingRow key={"h1-" + i} level="H1" text={h.text} hidden={h.hidden} />)}
+        {h2s.map((h, i) => <HeadingRow key={"h2-" + i} level="H2" text={h} indent />)}
+        {h1s.length > 0 && h2s.length === 0 && (
+          <div style={{ fontSize: "var(--fs-xs)", color: "var(--muted)", fontStyle: "italic", paddingTop: 4 }}>No se detectaron H2 — la estructura de contenido es plana</div>
+        )}
+      </div>
+
+      {/* Body content */}
+      <div style={{ fontSize: "var(--fs-xs)", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>
+        Contenido visible (body)
       </div>
       {blocks.map((b, i) => <ContentBlock key={b.id + i} b={b} mode={mode} />)}
       {mode === "after" && contentChanges === 0 && (
         <div style={{ textAlign: "center", color: "var(--faint)", fontSize: "var(--fs-sm)", padding: "24px 0", borderTop: "1px dashed var(--border)", marginTop: 14 }}>
-          Selecciona mejoras GEO → para ver cómo queda el contenido optimizado para IA
+          Marca sugerencias SEO → para ver el antes/después aquí
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ─── GeoTextView: how an LLM reads the page ─── */
+function GeoTextView({ blocks, mode, contentChanges }) {
+  const D = window.SURFACE_DATA;
+  const geo = D._rawGeo || {};
+  const entities = geo.entities || geo.key_entities || [];
+  const queries = geo.llm_query_matches || [];
+  const answerSummary = geo.answer_ready_summary || "";
+  const aiSnippet = geo.ai_snippet || "";
+  const citLike = geo.citation_likelihood || "";
+
+  return (
+    <div>
+      {/* Banner */}
+      <div style={{ marginBottom: 14, padding: "8px 12px", borderRadius: 8, background: "var(--geo-soft)", border: "1px solid var(--border-2)", display: "flex", alignItems: "flex-start", gap: 8, fontSize: "var(--fs-xs)", color: "var(--geo-ink)", lineHeight: 1.5 }}>
+        <Icon name="spark" size={14} stroke={2} style={{ flexShrink: 0, marginTop: 1 }} />
+        <span><b>Vista LLM:</b> texto plano que leen ChatGPT, Perplexity y Gemini — sin CSS, menús ni scripts. Optimiza esto para ser citado en respuestas de IA.</span>
+      </div>
+
+      {/* Citation likelihood */}
+      {citLike && (
+        <div style={{ marginBottom: 12, display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 9, background: citLike === "alta" ? "var(--good-soft)" : citLike === "media" ? "var(--warn-soft)" : "var(--poor-soft)", border: "1px solid var(--border-2)" }}>
+          <Icon name={citLike === "alta" ? "check" : citLike === "media" ? "info" : "alert"} size={14} stroke={2} style={{ color: citLike === "alta" ? "var(--good)" : citLike === "media" ? "var(--warn)" : "var(--poor)", flexShrink: 0 }} />
+          <span style={{ fontSize: "var(--fs-xs)", fontWeight: 700, color: "var(--ink-2)" }}>
+            Probabilidad de cita en IA: <span style={{ color: citLike === "alta" ? "var(--good)" : citLike === "media" ? "oklch(0.6 0.14 78)" : "var(--poor)", textTransform: "capitalize" }}>{citLike}</span>
+          </span>
+        </div>
+      )}
+
+      {/* Answer-ready summary */}
+      {answerSummary && (
+        <div style={{ marginBottom: 12, padding: "12px 14px", borderRadius: 10, background: "var(--geo-soft)", border: "1px solid oklch(0.88 0.04 285)" }}>
+          <div style={{ fontSize: "var(--fs-xs)", fontWeight: 700, color: "var(--geo-ink)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6, display: "flex", alignItems: "center", gap: 5 }}>
+            <Icon name="spark" size={12} stroke={2} /> Extracto answer-ready (listo para citar)
+          </div>
+          <p style={{ margin: 0, fontSize: "var(--fs-sm)", lineHeight: 1.65, color: "var(--ink-2)" }}>{answerSummary}</p>
+        </div>
+      )}
+
+      {/* AI snippet / direct answer */}
+      {aiSnippet && aiSnippet !== answerSummary && (
+        <div style={{ marginBottom: 12, padding: "10px 14px", borderRadius: 10, background: "var(--bg-2)", border: "1px solid var(--border)" }}>
+          <div style={{ fontSize: "var(--fs-xs)", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 5 }}>AI snippet sugerido</div>
+          <p style={{ margin: 0, fontSize: "var(--fs-xs)", lineHeight: 1.6, color: "var(--ink-2)", fontStyle: "italic" }}>{aiSnippet}</p>
+        </div>
+      )}
+
+      {/* Entities */}
+      {entities.length > 0 && (
+        <div style={{ marginBottom: 12, padding: "10px 14px", borderRadius: 10, background: "var(--bg-2)", border: "1px solid var(--border)" }}>
+          <div style={{ fontSize: "var(--fs-xs)", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Entidades reconocidas por IA</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+            {entities.slice(0, 12).map((e, i) => (
+              <span key={i} style={{ display: "inline-flex", padding: "2px 9px", borderRadius: 99, background: "var(--geo-soft)", color: "var(--geo-ink)", fontSize: "var(--fs-xs)", fontWeight: 600, border: "1px solid oklch(0.88 0.04 285)" }}>{e}</span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* LLM queries */}
+      {queries.length > 0 && (
+        <div style={{ marginBottom: 12, padding: "10px 14px", borderRadius: 10, background: "var(--bg-2)", border: "1px solid var(--border)" }}>
+          <div style={{ fontSize: "var(--fs-xs)", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>Preguntas que responde para IA</div>
+          {queries.slice(0, 5).map((q, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "flex-start", gap: 7, padding: "4px 0", borderBottom: i < queries.length - 1 ? "1px solid var(--border-2)" : "none", fontSize: "var(--fs-xs)" }}>
+              <Icon name="chevR" size={11} style={{ color: "var(--geo)", flexShrink: 0, marginTop: 2 }} />
+              <span style={{ color: "var(--ink-2)", lineHeight: 1.4 }}>{q}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Markdown body content */}
+      <div style={{ fontSize: "var(--fs-xs)", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8 }}>
+        Contenido en texto plano (markdown)
+      </div>
+      {blocks.map((b, i) => <ContentBlock key={b.id + i} b={b} mode={mode} />)}
+      {mode === "after" && contentChanges === 0 && (
+        <div style={{ textAlign: "center", color: "var(--faint)", fontSize: "var(--fs-sm)", padding: "24px 0", borderTop: "1px dashed var(--border)", marginTop: 14 }}>
+          Selecciona mejoras GEO → para ver el contenido optimizado para IA
         </div>
       )}
     </div>
@@ -2142,18 +2342,16 @@ function SuggestionCard({ s, on, onToggle, applied, onGenerate, generating, gene
               ? <Pill color="var(--good)" soft="var(--good-soft)" icon="check">Aplicada</Pill>
               : <Pill color={prioColor.c} soft={prioColor.s} icon={s.priority === "Quick win" ? "bolt" : undefined}>{s.priority}</Pill>}
           </div>
-          <div style={{ fontWeight: 600, fontSize: "var(--fs-base)", lineHeight: 1.35, display: "flex", alignItems: "baseline", gap: 7, flexWrap: "wrap" }}>
+          <div style={{ fontWeight: 600, fontSize: "var(--fs-base)", lineHeight: 1.35 }}>
             {(() => {
-              const actionWords = { "MODIFICA": {c:"var(--seo-ink)",bg:"var(--seo-soft)"}, "AÑADE": {c:"var(--geo-ink)",bg:"var(--geo-soft)"}, "ELIMINA": {c:"var(--poor)",bg:"var(--poor-soft)"}, "AÑADIR": {c:"var(--geo-ink)",bg:"var(--geo-soft)"}, "MODIFICAR": {c:"var(--seo-ink)",bg:"var(--seo-soft)"} };
               const title = s.title || "";
-              const match = Object.keys(actionWords).find(w => title.toUpperCase().startsWith(w));
-              if (!match) return <span>{title}</span>;
-              const col = actionWords[match];
+              const actionWords = ["MODIFICA","AÑADE","ELIMINA","AÑADIR","MODIFICAR","OPTIMIZA","INCLUYE","CREA","AGREGA","MEJORA","IMPLEMENTA","INCORPORA","ACTUALIZA","ELIMINAR","OPTIMIZAR","MEJORAR"];
+              const upper = title.toUpperCase();
+              const match = actionWords.find(w => upper.startsWith(w));
+              if (!match) return <span>{title.charAt(0).toUpperCase() + title.slice(1)}</span>;
               const rest = title.slice(match.length).replace(/^[\s:]+/, "");
-              return <>
-                <span style={{ display:"inline-flex", alignItems:"center", padding:"2px 8px", borderRadius:99, fontSize:"var(--fs-xs)", fontWeight:700, color:col.c, background:col.bg, whiteSpace:"nowrap", letterSpacing:"0.02em" }}>{match.charAt(0)+match.slice(1).toLowerCase()}</span>
-                <span>{rest}</span>
-              </>;
+              const action = match.charAt(0) + match.slice(1).toLowerCase();
+              return <span>{action}{rest ? " " + rest : ""}</span>;
             })()}
           </div>
           <div style={{ fontSize: "var(--fs-xs)", color: "var(--muted)", marginTop: 3, lineHeight: 1.45 }}>{s.desc}</div>
@@ -2372,7 +2570,24 @@ function Report({ scorecard, onLoadSuggestions, loadingImps }) {
   }, []);
   const [mode, setMode] = useState("after");
   const [filter, setFilter] = useState("all");
+  const [view, setView] = useState("seo");
   const [modal, setModal] = useState(false);
+
+  const handleLaneClick = (lane) => {
+    if (filter === lane) {
+      setFilter("all");
+      // keep view as-is when deactivating
+    } else {
+      setFilter(lane);
+      setView(lane);
+    }
+  };
+
+  const handleFilterClick = (id) => {
+    setFilter(id);
+    if (id === "seo") setView("seo");
+    if (id === "geo") setView("geo");
+  };
 
   const toggle = (id) => setSelected((s) => s.includes(id) ? s.filter((x) => x !== id) : [...s, id]);
 
@@ -2388,8 +2603,8 @@ function Report({ scorecard, onLoadSuggestions, loadingImps }) {
     <div style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
       {/* projected score header */}
       <div style={{ display: "flex", alignItems: "center", gap: 20, padding: "14px 24px", borderBottom: "1px solid var(--border)", background: "var(--surface)", flexShrink: 0, flexWrap: "wrap" }}>
-        <ProjScore lane="seo" base={D.SCORES.seo} proj={projSeo} />
-        <ProjScore lane="geo" base={D.SCORES.geo} proj={projGeo} />
+        <ProjScore lane="seo" base={D.SCORES.seo} proj={projSeo} active={filter === "seo"} onClick={() => handleLaneClick("seo")} />
+        <ProjScore lane="geo" base={D.SCORES.geo} proj={projGeo} active={filter === "geo"} onClick={() => handleLaneClick("geo")} />
         <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 12 }}>
           {selected.length > 0 && (
             <span style={{ fontSize: "var(--fs-sm)", color: "var(--muted)", fontWeight: 600 }}>
@@ -2406,7 +2621,7 @@ function Report({ scorecard, onLoadSuggestions, loadingImps }) {
       {/* two columns */}
       <div className="report-grid" style={{ flex: 1, display: "grid", gridTemplateColumns: "1.25fr 420px", gap: 0, minHeight: 0 }}>
         <div style={{ padding: "18px 20px 18px 24px", minWidth: 0, overflow: "hidden" }}>
-          <PreviewPane selectedIds={selected} mode={mode} setMode={setMode} />
+          <PreviewPane selectedIds={selected} mode={mode} setMode={setMode} view={view} setView={setView} />
         </div>
         <div style={{ borderLeft: "1px solid var(--border)", display: "flex", flexDirection: "column", background: "var(--bg-2)", minHeight: 0 }}>
           <div style={{ padding: "16px 18px 12px", flexShrink: 0 }}>
@@ -2417,7 +2632,7 @@ function Report({ scorecard, onLoadSuggestions, loadingImps }) {
             </div>
             <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
               {filters.map(([id, lb]) => (
-                <button key={id} onClick={() => setFilter(id)}
+                <button key={id} onClick={() => handleFilterClick(id)}
                   style={{
                     padding: "5px 12px", borderRadius: 99, fontSize: "var(--fs-xs)", fontWeight: 600, cursor: "pointer",
                     border: "1px solid " + (filter === id ? "transparent" : "var(--border)"),
@@ -2427,23 +2642,38 @@ function Report({ scorecard, onLoadSuggestions, loadingImps }) {
               ))}
             </div>
           </div>
-          <div className="scroll-area" style={{ padding: "0 18px 20px", display: "flex", flexDirection: "column", gap: 9 }}>
+          <div className="scroll-area" style={{ padding: "0 18px 20px", display: "flex", flexDirection: "column", gap: 9, minHeight: 0 }}>
             {loadingImps && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-                {[1,2,3,4].map(i => (
-                  <div key={i} style={{ borderRadius: 13, background: "var(--bg-2)", border: "1px solid var(--border)", padding: 13, display: "flex", gap: 11 }}>
-                    <div style={{ width: 22, height: 22, borderRadius: 7, background: "var(--border)" }} />
+              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "40px 16px 32px", gap: 20 }}>
+                {/* Spinner icon */}
+                <div style={{ position: "relative", width: 64, height: 64, display: "grid", placeItems: "center" }}>
+                  <span style={{ position: "absolute", inset: 0, borderRadius: "50%", border: "3px solid var(--seo-soft)", borderTopColor: "var(--seo)" }} className="spin" />
+                  <span style={{ position: "absolute", inset: 8, borderRadius: "50%", border: "2px solid var(--geo-soft)", borderBottomColor: "var(--geo)" }} className="spin-rev" />
+                  <Icon name="spark" size={22} stroke={2} style={{ color: "var(--seo)", position: "relative" }} />
+                </div>
+                {/* Label */}
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontWeight: 700, fontSize: 15.5, color: "var(--ink)", marginBottom: 5 }}>Generando sugerencias</div>
+                  <div style={{ fontSize: "var(--fs-sm)", color: "var(--muted)", lineHeight: 1.55 }}>
+                    Surface está analizando tu contenido con IA<br />para crear un plan de mejora personalizado
+                  </div>
+                </div>
+                {/* Skeleton cards */}
+                {[1, 2, 3].map((i) => (
+                  <div key={i} style={{ width: "100%", borderRadius: 13, background: "var(--surface)", border: "1px solid var(--border)", padding: 13, display: "flex", gap: 11, opacity: 1 - (i - 1) * 0.28 }}>
+                    <div style={{ width: 22, height: 22, borderRadius: 7, background: "var(--border-2)", flexShrink: 0 }} />
                     <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 7 }}>
-                      <div style={{ height: 10, borderRadius: 6, background: "var(--border)", width: "40%" }} />
-                      <div style={{ height: 13, borderRadius: 6, background: "var(--border)", width: "85%" }} />
-                      <div style={{ height: 10, borderRadius: 6, background: "var(--border)", width: "60%" }} />
+                      <div style={{ height: 9, borderRadius: 6, background: "var(--border-2)", width: "35%" }} />
+                      <div style={{ height: 13, borderRadius: 6, background: "var(--border-2)", width: "88%" }} />
+                      <div style={{ height: 9, borderRadius: 6, background: "var(--border-2)", width: "55%" }} />
+                      <div style={{ display: "flex", gap: 8, marginTop: 2 }}>
+                        <div style={{ height: 8, borderRadius: 6, background: "var(--border-2)", width: 48 }} />
+                        <div style={{ height: 8, borderRadius: 6, background: "var(--border-2)", width: 60 }} />
+                      </div>
                     </div>
                   </div>
                 ))}
-                <div style={{ textAlign: "center", padding: "8px 0", fontSize: "var(--fs-xs)", color: "var(--muted)", display: "flex", alignItems: "center", justifyContent: "center", gap: 7 }}>
-                  <span className="spin" style={{ width: 12, height: 12, borderRadius: 99, border: "2px solid var(--seo)", borderTopColor: "transparent", display: "inline-block" }} />
-                  Generando plan de mejora con IA…
-                </div>
+                <style>{`.spin-rev { animation: spin 1.1s linear infinite reverse; }`}</style>
               </div>
             )}
             {!loadingImps && filtered.map((s) => <SuggestionCard key={s.id} s={s} on={selected.includes(s.id)} onToggle={() => toggle(s.id)} onGenerate={handleGenerate} generating={generatingId===s.id} generated={generatedIds.includes(s.id)} />)}
@@ -2466,17 +2696,29 @@ function Report({ scorecard, onLoadSuggestions, loadingImps }) {
 
 const filters = [["all", "Todas"], ["quick", "Quick wins"], ["seo", "SEO"], ["geo", "GEO"]];
 
-function ProjScore({ lane, base, proj }) {
+function ProjScore({ lane, base, proj, active, onClick }) {
   const lc = laneColor(lane);
   const v = useCountUp(proj, 500);
   const up = proj > base;
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
-      <span style={{ width: 34, height: 34, borderRadius: 9, background: lc.soft, color: lc.ink, display: "grid", placeItems: "center", flexShrink: 0 }}>
+    <div
+      onClick={onClick}
+      title={onClick ? (active ? "Ver todas las sugerencias" : `Filtrar por ${lane.toUpperCase()}`) : undefined}
+      style={{
+        display: "flex", alignItems: "center", gap: 11,
+        cursor: onClick ? "pointer" : "default",
+        padding: "6px 10px", borderRadius: 10, transition: "background 0.14s ease",
+        background: active ? lc.soft : "transparent",
+        border: active ? "1px solid " + lc.c : "1px solid transparent",
+      }}>
+      <span style={{ width: 34, height: 34, borderRadius: 9, background: active ? lc.c : lc.soft, color: active ? "white" : lc.ink, display: "grid", placeItems: "center", flexShrink: 0, transition: "all 0.14s ease" }}>
         <Icon name={lane === "geo" ? "spark" : "search"} size={17} stroke={2} />
       </span>
       <div>
-        <div style={{ fontSize: "var(--fs-xs)", fontWeight: 700, color: lc.ink, letterSpacing: "0.04em" }}>{lane === "geo" ? "GEO · IA" : "SEO"}</div>
+        <div style={{ fontSize: "var(--fs-xs)", fontWeight: 700, color: lc.ink, letterSpacing: "0.04em", display: "flex", alignItems: "center", gap: 5 }}>
+          {lane === "geo" ? "GEO · IA" : "SEO"}
+          {active && <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.05em", background: lc.c, color: "white", padding: "1px 5px", borderRadius: 99 }}>ACTIVO</span>}
+        </div>
         <div style={{ display: "flex", alignItems: "baseline", gap: 7 }}>
           <span className="mono" style={{ fontSize: 24, fontWeight: 600, color: "var(--ink)", letterSpacing: "-0.02em" }}>{v}</span>
           {up && (
@@ -2506,109 +2748,310 @@ const SEVERITY = {
   "bajo": { c: "var(--muted)", soft: "var(--bg-2)", icon: "info" },
 };
 
+/* ── IssueCard: expandable, with solution generation ── */
+function IssueCard({ it, domain }) {
+  const [open, setOpen] = useState(false);
+  const [solution, setSolution] = useState(null);   // null | "loading" | {...}
+  const sv = SEVERITY[it.severity] || SEVERITY["medio"];
+  const lc = laneColor(it.lane);
+
+  const impactLabel = it.impact >= 15 ? "urgente" : it.impact >= 10 ? "importante" : "recomendado";
+  const impactColor = it.impact >= 15 ? { c: "var(--poor)", bg: "var(--poor-soft)" }
+    : it.impact >= 10 ? { c: "oklch(0.62 0.17 40)", bg: "oklch(0.95 0.05 50)" }
+    : { c: "var(--warn)", bg: "var(--warn-soft)" };
+
+  const generateSolution = async (e) => {
+    e.stopPropagation();
+    if (solution) return;
+    setSolution("loading");
+    try {
+      const res = await window._generateSolution(it, domain);
+      setSolution(res);
+    } catch (err) {
+      setSolution({ error: err.message || "Error generando solución" });
+    }
+  };
+
+  return (
+    <div className="rise-in" style={{ background: "var(--surface)", border: "1px solid " + (open ? lc.c : "var(--border)"), borderRadius: 14, overflow: "hidden", transition: "border-color 0.15s ease", boxShadow: open ? "var(--sh-md)" : "var(--sh-sm)" }}>
+
+      {/* Header row — always visible */}
+      <div style={{ display: "flex", gap: 14, padding: "16px 18px", cursor: "pointer", userSelect: "none" }} onClick={() => setOpen(o => !o)}>
+        {/* Lane icon */}
+        <span style={{ width: 38, height: 38, borderRadius: 10, background: lc.soft, color: lc.ink, display: "grid", placeItems: "center", flexShrink: 0, marginTop: 1 }}>
+          <Icon name={it.lane === "geo" ? "spark" : "search"} size={18} stroke={2} />
+        </span>
+
+        <div style={{ flex: 1, minWidth: 0 }}>
+          {/* Top badges */}
+          <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 5, flexWrap: "wrap" }}>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "2px 9px", borderRadius: 99, fontSize: "var(--fs-xs)", fontWeight: 700, background: impactColor.bg, color: impactColor.c }}>
+              <Icon name="bolt" size={10} stroke={2.5} />{impactLabel}
+            </span>
+            <span style={{ display: "inline-flex", alignItems: "center", gap: 4, padding: "2px 9px", borderRadius: 99, fontSize: "var(--fs-xs)", fontWeight: 700, background: sv.soft, color: sv.c, textTransform: "capitalize" }}>
+              {it.severity}
+            </span>
+            <LaneTag lane={it.lane} />
+            {it.pages > 0 && <span style={{ fontSize: "var(--fs-xs)", color: "var(--muted)" }}>{it.pages} {it.pages === 1 ? "página" : "páginas"} afectadas</span>}
+          </div>
+
+          {/* Title */}
+          <div style={{ fontWeight: 700, fontSize: 15, lineHeight: 1.3, color: "var(--ink)", marginBottom: 4 }}>{it.title}</div>
+
+          {/* Short desc */}
+          <div style={{ fontSize: "var(--fs-sm)", color: "var(--muted)", lineHeight: 1.5 }}>{it.desc}</div>
+        </div>
+
+        {/* Impact + chevron */}
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 6, flexShrink: 0 }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: "var(--fs-xs)", fontWeight: 700, color: "var(--good)" }}>
+            <Icon name="trend" size={12} stroke={2} />+{it.impact} pts
+          </span>
+          <Icon name={open ? "chevD" : "chevR"} size={16} style={{ color: "var(--faint)", marginTop: 6 }} />
+        </div>
+      </div>
+
+      {/* Expanded panel */}
+      {open && (
+        <div style={{ borderTop: "1px solid var(--border-2)", background: "var(--bg)", padding: "18px 20px 18px 70px" }}>
+
+          {/* Why it matters */}
+          {it.why_matters && (
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: "var(--fs-xs)", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6, display: "flex", alignItems: "center", gap: 5 }}>
+                <Icon name="info" size={13} stroke={2} /> ¿Por qué importa?
+              </div>
+              <p style={{ margin: 0, fontSize: "var(--fs-sm)", lineHeight: 1.65, color: "var(--ink-2)" }}>{it.why_matters}</p>
+            </div>
+          )}
+
+          {/* What's wrong */}
+          {it.what_wrong && (
+            <div style={{ marginBottom: 16, padding: "10px 14px", borderRadius: 10, background: "var(--surface)", border: "1px solid var(--border)" }}>
+              <div style={{ fontSize: "var(--fs-xs)", fontWeight: 700, color: sv.c, textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 5, display: "flex", alignItems: "center", gap: 5 }}>
+                <Icon name="alert" size={12} stroke={2} /> Qué está mal
+              </div>
+              <p style={{ margin: 0, fontSize: "var(--fs-xs)", lineHeight: 1.6, color: "var(--ink-2)", fontFamily: "var(--font-mono)" }}>{it.what_wrong}</p>
+            </div>
+          )}
+
+          {/* Solution section */}
+          {!solution && (
+            <button onClick={generateSolution}
+              style={{ display: "inline-flex", alignItems: "center", gap: 7, padding: "8px 16px", borderRadius: 10, border: "1px solid " + lc.c, background: lc.soft, color: lc.ink, fontSize: "var(--fs-sm)", fontWeight: 700, cursor: "pointer" }}>
+              <Icon name="spark" size={15} stroke={2} /> Generar solución con IA
+            </button>
+          )}
+
+          {solution === "loading" && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 0", color: "var(--muted)", fontSize: "var(--fs-sm)" }}>
+              <span className="spin" style={{ width: 16, height: 16, borderRadius: 99, border: "2px solid " + lc.c, borderTopColor: "transparent", display: "inline-block" }} />
+              Generando solución personalizada…
+            </div>
+          )}
+
+          {solution && solution !== "loading" && !solution.error && (
+            <SolutionPanel solution={solution} lane={it.lane} />
+          )}
+
+          {solution && solution.error && (
+            <div style={{ padding: "10px 14px", borderRadius: 10, background: "var(--poor-soft)", color: "var(--poor)", fontSize: "var(--fs-xs)", fontWeight: 600 }}>
+              {solution.error}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── SolutionPanel: generated solution display ── */
+function SolutionPanel({ solution, lane }) {
+  const lc = laneColor(lane);
+  const diffColor = solution.difficulty === "fácil" ? { c: "var(--good)", bg: "var(--good-soft)" }
+    : solution.difficulty === "técnico" ? { c: "var(--geo-ink)", bg: "var(--geo-soft)" }
+    : { c: "var(--warn)", bg: "var(--warn-soft)" };
+
+  return (
+    <div className="fade-in" style={{ marginTop: 4, borderRadius: 12, border: "1px solid " + lc.c, background: "var(--surface)", overflow: "hidden" }}>
+      {/* Solution header */}
+      <div style={{ padding: "12px 16px", background: lc.soft, borderBottom: "1px solid var(--border-2)", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+        <Icon name="bolt" size={16} stroke={2} style={{ color: lc.ink }} />
+        <span style={{ fontWeight: 700, fontSize: "var(--fs-sm)", color: lc.ink }}>Solución generada por IA</span>
+        <span style={{ display: "inline-flex", padding: "2px 9px", borderRadius: 99, fontSize: "var(--fs-xs)", fontWeight: 700, background: diffColor.bg, color: diffColor.c }}>{solution.difficulty}</span>
+        {solution.time_estimate && (
+          <span style={{ fontSize: "var(--fs-xs)", color: "var(--muted)", marginLeft: "auto" }}>⏱ {solution.time_estimate}</span>
+        )}
+      </div>
+
+      <div style={{ padding: "16px" }}>
+        {/* Explanation */}
+        {solution.explanation && (
+          <p style={{ margin: "0 0 16px", fontSize: "var(--fs-sm)", lineHeight: 1.65, color: "var(--ink-2)" }}>{solution.explanation}</p>
+        )}
+
+        {/* Steps */}
+        {(solution.steps || []).length > 0 && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, marginBottom: 16 }}>
+            {solution.steps.map((step) => (
+              <div key={step.n} style={{ display: "flex", gap: 12 }}>
+                <span style={{ width: 24, height: 24, borderRadius: 99, background: lc.c, color: "white", display: "grid", placeItems: "center", flexShrink: 0, fontSize: "var(--fs-xs)", fontWeight: 700, marginTop: 1 }}>{step.n}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: "var(--fs-sm)", marginBottom: 3, color: "var(--ink)" }}>{step.title}</div>
+                  <div style={{ fontSize: "var(--fs-xs)", lineHeight: 1.6, color: "var(--ink-2)" }}>{step.detail}</div>
+                  {step.code && (
+                    <pre style={{ margin: "8px 0 0", padding: "10px 12px", borderRadius: 8, background: "var(--bg-2)", border: "1px solid var(--border)", fontSize: "var(--fs-xs)", color: "var(--ink-2)", fontFamily: "var(--font-mono)", overflowX: "auto", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{step.code}</pre>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Example */}
+        {solution.example && (
+          <div style={{ marginBottom: 12, padding: "10px 14px", borderRadius: 10, background: "var(--bg-2)", border: "1px solid var(--border)" }}>
+            <div style={{ fontSize: "var(--fs-xs)", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 5 }}>Ejemplo</div>
+            <pre style={{ margin: 0, fontSize: "var(--fs-xs)", color: "var(--ink-2)", fontFamily: "var(--font-mono)", whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{solution.example}</pre>
+          </div>
+        )}
+
+        {/* Pro tip */}
+        {solution.pro_tip && (
+          <div style={{ display: "flex", gap: 8, padding: "10px 14px", borderRadius: 10, background: "var(--warn-soft)", border: "1px solid var(--border-2)" }}>
+            <Icon name="spark" size={14} stroke={2} style={{ color: "oklch(0.6 0.14 78)", flexShrink: 0, marginTop: 1 }} />
+            <div style={{ fontSize: "var(--fs-xs)", color: "var(--ink-2)", lineHeight: 1.55 }}>
+              <b style={{ color: "oklch(0.6 0.14 78)" }}>Pro tip: </b>{solution.pro_tip}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── DomainReport: tabs SEO/GEO, issue cards, pages table ── */
 function DomainReport({ onOpenPage }) {
   const D = window.SURFACE_DATA;
   const dom = D.DOMAIN;
-  const [tab, setTab] = useState("all"); // issue lane filter
-  const issues = dom.issues.filter((i) => tab === "all" ? true : i.lane === tab);
-  const opps = dom.pages.filter((p) => p.opp).sort((a, b) => b.traffic - a.traffic);
+  const [tab, setTab] = useState("all");
+
+  const allIssues = dom.issues || [];
+  const issues = allIssues.filter(i => tab === "all" ? true : i.lane === tab);
+  const issuesBySeverity = ["crítico", "alto", "medio", "bajo"].reduce((acc, s) => {
+    acc[s] = allIssues.filter(i => i.severity === s).length;
+    return acc;
+  }, {});
+  const opps = (dom.pages || []).filter(p => p.opp);
 
   return (
     <div className="scroll-area">
       <div style={{ maxWidth: 1080, margin: "0 auto", padding: "26px 28px 60px" }}>
-        {/* hero */}
+
+        {/* ── Hero: scores + summary ── */}
         <div className="card rise-in" style={{ padding: "var(--pad)", marginBottom: "var(--gap)", display: "grid", gridTemplateColumns: "auto 1fr", gap: 28, alignItems: "center" }}>
           <div style={{ display: "flex", gap: 26, alignItems: "center", paddingRight: 28, borderRight: "1px solid var(--border-2)" }}>
-            <ScoreRing value={dom.seo} size={104} stroke={10} color="var(--seo)" label="SEO" />
-            <ScoreRing value={dom.geo} size={104} stroke={10} color="var(--geo)" label="GEO" />
+            <div style={{ textAlign: "center" }}>
+              <ScoreRing value={dom.seo} size={90} stroke={9} color="var(--seo)" label="SEO" />
+              <div style={{ fontSize: "var(--fs-xs)", fontWeight: 700, color: "var(--seo-ink)", marginTop: 6 }}>SEO</div>
+            </div>
+            <div style={{ textAlign: "center" }}>
+              <ScoreRing value={dom.geo} size={90} stroke={9} color="var(--geo)" label="GEO" />
+              <div style={{ fontSize: "var(--fs-xs)", fontWeight: 700, color: "var(--geo-ink)", marginTop: 6 }}>GEO · IA</div>
+            </div>
           </div>
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-              <span style={{ width: 30, height: 30, borderRadius: 8, background: "linear-gradient(145deg,var(--seo),oklch(0.6 0.18 30))", color: "white", display: "grid", placeItems: "center", fontSize: 12, fontWeight: 700 }}>OdS</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
               <h2 style={{ fontSize: 22, fontWeight: 700, margin: 0, letterSpacing: "-0.02em" }} className="mono">{dom.domain}</h2>
             </div>
-            <p style={{ color: "var(--muted)", margin: "0 0 16px", fontSize: "var(--fs-sm)" }}>
-              Auditoría de dominio completo · <b style={{ color: "var(--ink-2)" }}>{dom.pagesCrawled} páginas</b> rastreadas · {dom.issues.length} problemas detectados
+            <p style={{ color: "var(--muted)", margin: "0 0 14px", fontSize: "var(--fs-sm)" }}>
+              Auditoría completa · <b style={{ color: "var(--ink-2)" }}>{dom.pagesCrawled} páginas</b> rastreadas · <b style={{ color: "var(--ink-2)" }}>{allIssues.length}</b> problemas detectados
             </p>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              <Pill color="var(--poor)" soft="var(--poor-soft)" icon="alert">{dom.issues.filter((i) => i.severity === "crítico").length} crítico</Pill>
-              <Pill color="oklch(0.62 0.17 40)" soft="oklch(0.95 0.05 50)">{dom.issues.filter((i) => i.severity === "alto").length} alto</Pill>
-              <Pill color="var(--warn)" soft="var(--warn-soft)">{dom.issues.filter((i) => i.severity === "medio").length} medio</Pill>
-              <Pill icon="trend" color="var(--good)" soft="var(--good-soft)">{opps.length} oportunidades de página</Pill>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {issuesBySeverity["crítico"] > 0 && <Pill color="var(--poor)" soft="var(--poor-soft)" icon="alert">{issuesBySeverity["crítico"]} crítico{issuesBySeverity["crítico"] > 1 ? "s" : ""}</Pill>}
+              {issuesBySeverity["alto"] > 0 && <Pill color="oklch(0.62 0.17 40)" soft="oklch(0.95 0.05 50)">{issuesBySeverity["alto"]} alto{issuesBySeverity["alto"] > 1 ? "s" : ""}</Pill>}
+              {issuesBySeverity["medio"] > 0 && <Pill color="var(--warn)" soft="var(--warn-soft)">{issuesBySeverity["medio"]} medio{issuesBySeverity["medio"] > 1 ? "s" : ""}</Pill>}
+              {issuesBySeverity["bajo"] > 0 && <Pill color="var(--muted)" soft="var(--bg-2)">{issuesBySeverity["bajo"]} bajo{issuesBySeverity["bajo"] > 1 ? "s" : ""}</Pill>}
+              {opps.length > 0 && <Pill icon="trend" color="var(--good)" soft="var(--good-soft)">{opps.length} oportunidades</Pill>}
             </div>
           </div>
         </div>
 
-        {/* site-wide issues */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "4px 0 14px" }}>
-          <SectionTitle icon="alert">Problemas a nivel de sitio</SectionTitle>
-          <div style={{ display: "flex", gap: 6 }}>
-            {[["all", "Todos"], ["geo", "GEO"], ["seo", "SEO"]].map(([id, lb]) => (
-              <button key={id} onClick={() => setTab(id)} style={{ padding: "4px 11px", borderRadius: 99, fontSize: "var(--fs-xs)", fontWeight: 600, cursor: "pointer", border: "1px solid " + (tab === id ? "transparent" : "var(--border)"), background: tab === id ? "var(--ink)" : "var(--surface)", color: tab === id ? "var(--bg)" : "var(--muted)" }}>{lb}</button>
-            ))}
+        {/* ── Issues header + tabs ── */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "24px 0 16px", gap: 12, flexWrap: "wrap" }}>
+          <div>
+            <h3 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 3px", letterSpacing: "-0.01em" }}>Problemas detectados</h3>
+            <span style={{ fontSize: "var(--fs-xs)", color: "var(--muted)" }}>Clic en cada problema para ver el detalle y generar una solución con IA</span>
+          </div>
+          {/* Lane tabs */}
+          <div style={{ display: "flex", background: "var(--bg-2)", borderRadius: 10, padding: 3, gap: 2 }}>
+            {[["all", "Todos", null], ["seo", "🔍 SEO", "seo"], ["geo", "🤖 GEO", "geo"]].map(([id, lb, lane]) => {
+              const lc = lane ? laneColor(lane) : null;
+              const active = tab === id;
+              return (
+                <button key={id} onClick={() => setTab(id)} style={{
+                  padding: "5px 14px", borderRadius: 8, border: "none", fontSize: "var(--fs-sm)", fontWeight: 600, cursor: "pointer",
+                  background: active ? (lc ? lc.soft : "var(--surface)") : "transparent",
+                  color: active ? (lc ? lc.ink : "var(--ink)") : "var(--muted)",
+                  boxShadow: active ? "var(--sh-sm)" : "none", transition: "all 0.14s ease",
+                  outline: active && lc ? "1px solid " + lc.c : "none",
+                }}>{lb} <span style={{ fontSize: "var(--fs-xs)", fontWeight: 500, opacity: 0.7 }}>
+                  {id === "all" ? allIssues.length : allIssues.filter(i => i.lane === id).length}
+                </span></button>
+              );
+            })}
           </div>
         </div>
-        <div className="card rise-in" style={{ overflow: "hidden", marginBottom: 28 }}>
-          {issues.map((it, i) => {
-            const sv = SEVERITY[it.severity];
-            return (
-              <div key={it.id} style={{ display: "flex", alignItems: "center", gap: 14, padding: "14px 18px", borderTop: i ? "1px solid var(--border-2)" : "none" }}>
-                <span style={{ width: 34, height: 34, borderRadius: 9, background: sv.soft, color: sv.c, display: "grid", placeItems: "center", flexShrink: 0 }}>
-                  <Icon name={sv.icon} size={17} stroke={2} />
-                </span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2, flexWrap: "wrap" }}>
-                    <span style={{ fontWeight: 600, fontSize: "var(--fs-base)" }}>{it.title}</span>
-                    <LaneTag lane={it.lane} />
-                  </div>
-                  <div style={{ fontSize: "var(--fs-xs)", color: "var(--muted)", lineHeight: 1.4 }}>{it.desc}</div>
-                </div>
-                <div style={{ textAlign: "right", flexShrink: 0 }}>
-                  <div style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "3px 9px", borderRadius: 99, background: sv.soft, color: sv.c, fontSize: "var(--fs-xs)", fontWeight: 700, textTransform: "capitalize" }}>{it.severity}</div>
-                  <div className="mono" style={{ fontSize: "var(--fs-xs)", color: "var(--muted)", marginTop: 4 }}>{it.pages} {it.pages === 1 ? "página" : "págs"}</div>
-                </div>
-                <Icon name="chevR" size={16} style={{ color: "var(--faint)", flexShrink: 0 }} />
-              </div>
-            );
-          })}
+
+        {/* ── Issue cards grid ── */}
+        {issues.length === 0 && (
+          <div style={{ textAlign: "center", padding: "40px 0", color: "var(--faint)", fontSize: "var(--fs-sm)" }}>
+            No hay problemas en este filtro.
+          </div>
+        )}
+        <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 32 }}>
+          {issues.map(it => <IssueCard key={it.id} it={it} domain={dom.domain} />)}
         </div>
 
-        {/* pages table */}
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "4px 0 14px" }}>
-          <SectionTitle icon="layers">Páginas del dominio</SectionTitle>
-          <span style={{ fontSize: "var(--fs-xs)", color: "var(--faint)", display: "inline-flex", alignItems: "center", gap: 5 }}><Icon name="info" size={12} /> ordenadas por tráfico · clic para ver mejoras</span>
-        </div>
-        <div className="card rise-in" style={{ overflow: "hidden" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ background: "var(--bg-2)" }}>
-                {["Página", "Tipo", "Tráfico/mes", "SEO", "GEO", ""].map((h, i) => (
-                  <th key={h} style={{ textAlign: i >= 2 && i <= 4 ? "right" : "left", padding: "11px 16px", fontSize: "var(--fs-xs)", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {dom.pages.slice().sort((a, b) => b.traffic - a.traffic).map((p) => (
-                <tr key={p.url} onClick={() => onOpenPage && onOpenPage(p)} className="page-row" style={{ borderTop: "1px solid var(--border-2)", cursor: "pointer" }}>
-                  <td style={{ padding: "12px 16px", maxWidth: 360 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontWeight: 600, fontSize: "var(--fs-sm)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.title}</div>
-                        <div className="mono" style={{ fontSize: "var(--fs-xs)", color: "var(--muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.url}</div>
-                      </div>
-                      {p.opp && <Pill color="var(--good)" soft="var(--good-soft)" icon="trend" style={{ flexShrink: 0 }}>Oportunidad</Pill>}
-                    </div>
-                  </td>
-                  <td style={{ padding: "12px 16px" }}><Pill>{p.type}</Pill></td>
-                  <td className="mono" style={{ padding: "12px 16px", textAlign: "right", fontSize: "var(--fs-sm)", color: "var(--ink-2)" }}>{p.traffic.toLocaleString("es")}</td>
-                  <td style={{ padding: "12px 16px", textAlign: "right" }}><ScorePip v={p.seo} /></td>
-                  <td style={{ padding: "12px 16px", textAlign: "right" }}><ScorePip v={p.geo} /></td>
-                  <td style={{ padding: "12px 16px", textAlign: "right" }}><Icon name="chevR" size={16} style={{ color: "var(--faint)" }} /></td>
+        {/* ── Pages table ── */}
+        {(dom.pages || []).length > 0 && <>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", margin: "0 0 14px" }}>
+            <SectionTitle icon="layers">Páginas del dominio</SectionTitle>
+            <span style={{ fontSize: "var(--fs-xs)", color: "var(--faint)", display: "inline-flex", alignItems: "center", gap: 5 }}>
+              <Icon name="info" size={12} /> clic para ver mejoras
+            </span>
+          </div>
+          <div className="card rise-in" style={{ overflow: "hidden" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ background: "var(--bg-2)" }}>
+                  {["Página", "Tipo", "SEO", "GEO", ""].map((h, i) => (
+                    <th key={i} style={{ textAlign: i >= 2 && i <= 3 ? "right" : "left", padding: "11px 16px", fontSize: "var(--fs-xs)", fontWeight: 700, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.05em" }}>{h}</th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {(dom.pages || []).slice().sort((a, b) => (b.traffic || 0) - (a.traffic || 0)).map((p) => (
+                  <tr key={p.url} onClick={() => onOpenPage && onOpenPage(p)} className="page-row" style={{ borderTop: "1px solid var(--border-2)", cursor: "pointer" }}>
+                    <td style={{ padding: "12px 16px", maxWidth: 360 }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 9 }}>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: 600, fontSize: "var(--fs-sm)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.title}</div>
+                          <div className="mono" style={{ fontSize: "var(--fs-xs)", color: "var(--muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{p.url}</div>
+                        </div>
+                        {p.opp && <Pill color="var(--good)" soft="var(--good-soft)" icon="trend" style={{ flexShrink: 0 }}>Oportunidad</Pill>}
+                      </div>
+                    </td>
+                    <td style={{ padding: "12px 16px" }}><Pill>{p.type}</Pill></td>
+                    <td style={{ padding: "12px 16px", textAlign: "right" }}><ScorePip v={p.seo} /></td>
+                    <td style={{ padding: "12px 16px", textAlign: "right" }}><ScorePip v={p.geo} /></td>
+                    <td style={{ padding: "12px 16px", textAlign: "right" }}><Icon name="chevR" size={16} style={{ color: "var(--faint)" }} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>}
       </div>
       <style>{`.page-row:hover { background: var(--bg-2); }`}</style>
     </div>
@@ -2618,7 +3061,7 @@ function DomainReport({ onOpenPage }) {
 function ScorePip({ v }) {
   const col = scoreColor(v).c;
   return <span className="mono" style={{ display: "inline-flex", alignItems: "center", justifyContent: "flex-end", gap: 6, fontWeight: 600, fontSize: "var(--fs-sm)" }}>
-    <span style={{ width: 7, height: 7, borderRadius: 99, background: col }} />{v}
+    <span style={{ width: 7, height: 7, borderRadius: 99, background: col }} />{v || "–"}
   </span>;
 }
 
@@ -2873,8 +3316,12 @@ function App() {
 
   const handleAnalysisDone = (data) => {
     const { val, opts } = pendingInput || {};
-    window.populateSurfaceData(mode, val, opts || {}, data);
-    if (window.SURFACE_DATA) window.SURFACE_DATA.SUGGESTIONS = [];
+    if (mode === "domain") {
+      window.populateDomainData(val, data);
+    } else {
+      window.populateSurfaceData(mode, val, opts || {}, data);
+      if (window.SURFACE_DATA) window.SURFACE_DATA.SUGGESTIONS = [];
+    }
     setDataKey((k) => k + 1);
     setScreen(resultScreen(mode));
   };
